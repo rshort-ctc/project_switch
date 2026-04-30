@@ -29,6 +29,12 @@ def test_local_only_allows_configured_compose_service_hosts() -> None:
     assert settings.endpoint_is_local(str(settings.vllm_endpoint))
 
 
+def test_local_only_allows_host_ollama_for_compose() -> None:
+    settings = Settings(vllm_endpoint="http://host.docker.internal:11434/v1")
+
+    assert settings.endpoint_is_local(str(settings.vllm_endpoint))
+
+
 def test_public_endpoint_can_only_be_configured_when_local_only_is_disabled() -> None:
     settings = Settings(local_only=False, vllm_endpoint="https://internal.example.invalid/v1")
 

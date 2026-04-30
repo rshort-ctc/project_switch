@@ -5,6 +5,8 @@ import type {
   ApprovalRequest,
   AskContext,
   AuditEvent,
+  ChatMessage,
+  ChatResponse,
   HealthDetails,
   ModelGatewayHealth,
   ModelRoles,
@@ -129,4 +131,18 @@ export async function askRepo(repositoryId: string, question: string): Promise<A
     max_bundles: 6,
   });
   return payload.contexts;
+}
+
+export async function sendChatMessage(input: {
+  repositoryId: string | null;
+  messages: ChatMessage[];
+  modelRole: string;
+  maxBundles: number;
+}): Promise<ChatResponse> {
+  return apiPost<ChatResponse>("/chat", {
+    repository_id: input.repositoryId,
+    messages: input.messages,
+    model_role: input.modelRole,
+    max_bundles: input.maxBundles,
+  });
 }

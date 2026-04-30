@@ -37,7 +37,7 @@ services:
       SWITCH_AUDIT_RETENTION_DAYS: ${SWITCH_AUDIT_RETENTION_DAYS:-365}
       SWITCH_ADMIN_CONTACT: ${SWITCH_ADMIN_CONTACT:-local-admin@example.invalid}
       SWITCH_DEFAULT_PERMISSION_LEVEL: ${SWITCH_DEFAULT_PERMISSION_LEVEL:-1}
-      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway"]}
+      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]}
       SWITCH_PLANNER_MODEL: ${SWITCH_PLANNER_MODEL:-}
       SWITCH_CODER_MODEL: ${SWITCH_CODER_MODEL:-}
       SWITCH_REVIEWER_MODEL: ${SWITCH_REVIEWER_MODEL:-}
@@ -58,6 +58,8 @@ services:
     volumes:
       - switch-artifacts:/srv/switch/.switch
       - ${SWITCH_WORKSPACE_ROOT:-./workspaces}:/workspaces:rw
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         - CMD
@@ -83,7 +85,9 @@ services:
       SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@postgres:5432/switch}
       SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://qdrant:6333}
       SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://model-gateway:8001/v1}
-      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway"]}
+      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

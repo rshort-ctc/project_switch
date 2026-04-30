@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, Boxes, ClipboardCheck, GitBranch, Home, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  Boxes,
+  ClipboardCheck,
+  GitBranch,
+  Home,
+  MessageSquare,
+  ShieldCheck,
+} from "lucide-react";
 
 import "./globals.css";
 
@@ -11,6 +19,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/repos", label: "Repos", icon: GitBranch },
   { href: "/tasks", label: "Tasks", icon: Boxes },
   { href: "/approvals", label: "Approvals", icon: ShieldCheck },

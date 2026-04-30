@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { apiPost } from "@/lib/api";
-import type { ApprovalRequest } from "@/lib/types";
+import { apiPost, sendChatMessage } from "@/lib/api";
+import type { ApprovalRequest, ChatMessage, ChatResponse } from "@/lib/types";
 
 export async function approveApproval(formData: FormData): Promise<void> {
   const approvalId = requiredFormValue(formData, "approval_id");
@@ -25,6 +25,15 @@ export async function denyApproval(formData: FormData): Promise<void> {
     decision_note: note,
   });
   revalidateDashboard();
+}
+
+export async function sendDashboardChatMessage(input: {
+  repositoryId: string | null;
+  messages: ChatMessage[];
+  modelRole: string;
+  maxBundles: number;
+}): Promise<ChatResponse> {
+  return sendChatMessage(input);
 }
 
 function requiredFormValue(formData: FormData, key: string): string {

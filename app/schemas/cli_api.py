@@ -55,6 +55,34 @@ class AskResponse(BaseModel):
     contexts: list[AskContext]
 
 
+class ChatMessageInput(BaseModel):
+    role: str = Field(pattern="^(system|user|assistant)$")
+    content: str = Field(min_length=1)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessageInput] = Field(min_length=1)
+    repository_id: str | None = None
+    actor_user_id: str | None = None
+    model_role: str = Field(default="coder_model")
+    max_bundles: int = Field(default=6, ge=0, le=20)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1200, ge=1, le=8000)
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    contexts: list[AskContext]
+    model: str | None = None
+    model_role: str
+    used_model: bool
+    degraded: bool
+    stop_reason: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
 class TaskCreateResponse(BaseModel):
     task: TaskRead
     run: AgentRunRead

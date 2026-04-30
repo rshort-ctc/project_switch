@@ -95,11 +95,32 @@ export type AskContext = {
   reasons: string[];
 };
 
+export type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
+export type ChatResponse = {
+  answer: string;
+  contexts: AskContext[];
+  model: string | null;
+  model_role: string;
+  used_model: boolean;
+  degraded: boolean;
+  stop_reason: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+};
+
 export type HealthDetails = {
   status: string;
   app: string;
   environment: string;
   local_only: boolean;
+  audit_retention_days: number;
+  default_permission_level: number;
+  sandbox_network_enabled: boolean;
   services: Record<string, { configured: boolean }>;
 };
 

@@ -51,7 +51,7 @@ def make_gateway(
 
 
 def test_model_registry_requires_configured_role() -> None:
-    registry = ModelRegistry(Settings())
+    registry = ModelRegistry(Settings(_env_file=None))
 
     with pytest.raises(ModelNotConfiguredError, match="planner_model"):
         registry.model_for(ModelRole.PLANNER)

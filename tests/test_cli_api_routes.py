@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.api.routes.ask import ask_question
+from app.api.routes.chat import chat
 from app.api.routes.repos import add_repository, index_repository, repository_status
 from app.api.routes.tasks import (
     apply_approved_patch,
@@ -14,7 +15,7 @@ from app.api.routes.tasks import (
     validation_results,
 )
 from app.models.enums import ApprovalStatus
-from app.schemas.cli_api import AskRequest, TaskApplyPatchRequest
+from app.schemas.cli_api import AskRequest, ChatMessageInput, ChatRequest, TaskApplyPatchRequest
 from app.schemas.durable import RepositoryCreate, TaskCreate
 from app.services.runs import RunService
 
@@ -51,6 +52,30 @@ def test_ask_returns_context_with_provenance(session: Session, tmp_path: Path) -
     assert response.question == "greet function"
     assert response.contexts
     assert response.contexts[0].path.endswith("module.py")
+
+
+def test_chat_returns_retrieval_fallback_when_model_unavailable(
+    session: Session, tmp_path: Path
+) -> None:
+    repo_path = _sample_repo(tmp_path)
+    repository = add_repository(
+        RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
+        session,
+    )
+
+    response = chat(
+        ChatRequest(
+            repository_id=repository.id,
+            messages=[ChatMessageInput(role="user", content="Where is greet implemented?")],
+            max_bundles=3,
+        ),
+        session,
+    )
+
+    assert response.degraded
+    assert not response.used_model
+    assert response.contexts
+    assert "module.py" in response.answer
 
 
 def test_task_status_logs_diff_and_validations(session: Session, tmp_path: Path) -> None:

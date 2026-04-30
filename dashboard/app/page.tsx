@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Server } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MessageSquare, Server } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
@@ -48,6 +48,17 @@ export default async function DashboardHome() {
           <span className="muted">Pending approvals</span>
           <span className="metric-value">{approvals.length}</span>
         </div>
+      </div>
+
+      <div className="panel chat-entry">
+        <div>
+          <MessageSquare aria-hidden="true" size={20} />
+          <strong>Open SWITCH Chat</strong>
+          <span className="muted">Repo-aware local assistant with citations, task handoff, and approvals.</span>
+        </div>
+        <Link className="button-link" href="/chat">
+          Launch chat
+        </Link>
       </div>
 
       <div className="grid cols-2" style={{ marginTop: 14 }}>
