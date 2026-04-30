@@ -8,7 +8,8 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 - `SWITCH_DATABASE_URL=postgresql+psycopg://...@postgres:5432/switch`
 - `SWITCH_REDIS_URL=redis://redis:6379/0`
 - `SWITCH_VECTOR_STORE_URL=http://qdrant:6333`
-- `SWITCH_VLLM_ENDPOINT=http://model-gateway:8001/v1` or approved local endpoint
+- `SWITCH_VLLM_ENDPOINT=http://model-gateway:8001/v1` or approved local endpoint.
+  Use `http://host.docker.internal:11434/v1` for host Ollama from Compose.
 - `SWITCH_POSTGRES_PASSWORD`: change the example value before deployment
 - `SWITCH_PROTECTED_BRANCHES`: include `main`, `master`, release branches
 
@@ -20,7 +21,7 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 - `SWITCH_SANDBOX_TIMEOUT_SECONDS=60`
 - `SWITCH_AUDIT_RETENTION_DAYS=365`
 - `SWITCH_DEFAULT_PERMISSION_LEVEL=1`
-- `SWITCH_ALLOWED_LOCAL_HOSTS=["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway"]`
+- `SWITCH_ALLOWED_LOCAL_HOSTS=["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]`
 
 ## Model Roles
 

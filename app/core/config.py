@@ -70,6 +70,7 @@ class Settings(BaseSettings):
         "redis",
         "qdrant",
         "model-gateway",
+        "host.docker.internal",
     )
 
     @field_validator("allowed_network_cidrs")
