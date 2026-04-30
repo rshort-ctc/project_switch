@@ -1,0 +1,114 @@
+from pydantic import BaseModel, Field
+
+from app.schemas.durable import (
+    AgentRunRead,
+    AuditEventRead,
+    RepositoryRead,
+    TaskRead,
+    ValidationRunRead,
+)
+
+
+class AgentModelsResponse(BaseModel):
+    planner_model: str | None
+    coder_model: str | None
+    reviewer_model: str | None
+    summarizer_model: str | None
+    embedding_model: str | None
+    reranker_model: str | None
+
+
+class RepoIndexResponse(BaseModel):
+    repository_id: str
+    index_id: str
+    status: str
+    commit_sha: str
+    indexed_files: int
+    indexed_chunks: int
+    skipped_ignored_files: int
+    skipped_binary_files: int
+    skipped_unchanged_files: int
+
+
+class RepoStatusResponse(BaseModel):
+    repository: RepositoryRead
+    latest_index: RepoIndexResponse | None = None
+
+
+class AskRequest(BaseModel):
+    repository_id: str
+    question: str = Field(min_length=1)
+    max_bundles: int = Field(default=5, ge=1, le=20)
+
+
+class AskContext(BaseModel):
+    path: str
+    start_line: int
+    end_line: int
+    score: float
+    reasons: list[str]
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    contexts: list[AskContext]
+
+
+class TaskCreateResponse(BaseModel):
+    task: TaskRead
+    run: AgentRunRead
+
+
+class TaskStatusResponse(BaseModel):
+    task: TaskRead
+    run: AgentRunRead | None = None
+
+
+class TaskListResponse(BaseModel):
+    tasks: list[TaskRead]
+
+
+class TaskLogsResponse(BaseModel):
+    task_id: str
+    events: list[AuditEventRead]
+
+
+class TaskDiffResponse(BaseModel):
+    task_id: str
+    diff: str
+    changed_files: list[str]
+
+
+class TaskApplyPatchRequest(BaseModel):
+    actor_user_id: str = Field(min_length=1)
+    approval_request_id: str = Field(min_length=1)
+    unified_diff: str = Field(min_length=1)
+    branch: str | None = None
+    allow_binary: bool = False
+
+
+class TaskApplyPatchResponse(BaseModel):
+    task_id: str
+    success: bool
+    changed_files: list[str]
+    added_files: list[str]
+    deleted_files: list[str]
+    patch_artifact_id: str | None = None
+    rollback_artifact_id: str | None = None
+    approval_required: bool
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class ValidationResultsResponse(BaseModel):
+    task_id: str
+    validations: list[ValidationRunRead]
+
+
+class RepositoryListResponse(BaseModel):
+    repositories: list[RepositoryRead]
+
+
+class AuditLogResponse(BaseModel):
+    events: list[AuditEventRead]

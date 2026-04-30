@@ -1,0 +1,327 @@
+from collections.abc import Sequence
+
+from sqlalchemy import Select, select
+from sqlalchemy.orm import Session
+
+from app.models.entities import (
+    AgentRun,
+    AgentStep,
+    ApprovalRequest,
+    AuditEvent,
+    PatchArtifact,
+    PolicyDecision,
+    RepoIndex,
+    Repository,
+    Task,
+    ToolCall,
+    User,
+    ValidationRun,
+)
+from app.models.enums import ValidationStatus
+
+
+class BaseRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, entity: object) -> None:
+        self.session.add(entity)
+
+
+class UserRepository(BaseRepository):
+    def create(self, *, email: str, display_name: str) -> User:
+        user = User(email=email, display_name=display_name)
+        self.add(user)
+        self.session.flush()
+        return user
+
+    def get(self, user_id: str) -> User | None:
+        return self.session.get(User, user_id)
+
+
+class RepositoryRepository(BaseRepository):
+    def create(self, *, name: str, local_path: str, default_branch: str) -> Repository:
+        repository = Repository(name=name, local_path=local_path, default_branch=default_branch)
+        self.add(repository)
+        self.session.flush()
+        return repository
+
+    def get(self, repository_id: str) -> Repository | None:
+        return self.session.get(Repository, repository_id)
+
+    def list(self) -> Sequence[Repository]:
+        statement: Select[tuple[Repository]] = select(Repository).order_by(
+            Repository.created_at, Repository.id
+        )
+        return self.session.execute(statement).scalars().all()
+
+
+class RepoIndexRepository(BaseRepository):
+    def create(self, *, repository_id: str, commit_sha: str) -> RepoIndex:
+        index = RepoIndex(repository_id=repository_id, commit_sha=commit_sha)
+        self.add(index)
+        self.session.flush()
+        return index
+
+    def latest_for_repository(self, repository_id: str) -> RepoIndex | None:
+        statement: Select[tuple[RepoIndex]] = (
+            select(RepoIndex)
+            .where(RepoIndex.repository_id == repository_id)
+            .order_by(RepoIndex.created_at.desc(), RepoIndex.id.desc())
+        )
+        return self.session.execute(statement).scalars().first()
+
+
+class TaskRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        repository_id: str,
+        created_by_user_id: str,
+        title: str,
+        description: str,
+    ) -> Task:
+        task = Task(
+            repository_id=repository_id,
+            created_by_user_id=created_by_user_id,
+            title=title,
+            description=description,
+        )
+        self.add(task)
+        self.session.flush()
+        return task
+
+    def get(self, task_id: str) -> Task | None:
+        return self.session.get(Task, task_id)
+
+    def list(self) -> Sequence[Task]:
+        statement: Select[tuple[Task]] = select(Task).order_by(Task.created_at, Task.id)
+        return self.session.execute(statement).scalars().all()
+
+
+class AgentRunRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        task_id: str,
+        base_branch: str,
+        target_branch: str | None = None,
+        model_name: str | None = None,
+    ) -> AgentRun:
+        run = AgentRun(
+            task_id=task_id,
+            base_branch=base_branch,
+            target_branch=target_branch,
+            model_name=model_name,
+        )
+        self.add(run)
+        self.session.flush()
+        return run
+
+    def get(self, agent_run_id: str) -> AgentRun | None:
+        return self.session.get(AgentRun, agent_run_id)
+
+    def latest_for_task(self, task_id: str) -> AgentRun | None:
+        statement: Select[tuple[AgentRun]] = (
+            select(AgentRun)
+            .where(AgentRun.task_id == task_id)
+            .order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
+        )
+        return self.session.execute(statement).scalars().first()
+
+
+class AgentStepRepository(BaseRepository):
+    def create(self, *, agent_run_id: str, sequence: int, name: str) -> AgentStep:
+        step = AgentStep(agent_run_id=agent_run_id, sequence=sequence, name=name)
+        self.add(step)
+        self.session.flush()
+        return step
+
+
+class ToolCallRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        agent_step_id: str,
+        tool_name: str,
+        input_summary: str,
+        output_summary: str | None,
+        status: str,
+        duration_ms: int,
+        approval_required: bool,
+        error: str | None,
+    ) -> ToolCall:
+        tool_call = ToolCall(
+            agent_step_id=agent_step_id,
+            tool_name=tool_name,
+            input_summary=input_summary,
+            output_summary=output_summary,
+            status=status,
+            duration_ms=duration_ms,
+            approval_required=approval_required,
+            error=error,
+        )
+        self.add(tool_call)
+        self.session.flush()
+        return tool_call
+
+
+class ApprovalRequestRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        agent_run_id: str,
+        requested_by_user_id: str,
+        reason: str,
+        task_id: str | None = None,
+        requested_action: str = "unspecified",
+        risk_level: str = "medium",
+        diff_summary: str | None = None,
+        command: str | None = None,
+    ) -> ApprovalRequest:
+        approval = ApprovalRequest(
+            task_id=task_id,
+            agent_run_id=agent_run_id,
+            requested_by_user_id=requested_by_user_id,
+            reason=reason,
+            requested_action=requested_action,
+            risk_level=risk_level,
+            diff_summary=diff_summary,
+            command=command,
+        )
+        self.add(approval)
+        self.session.flush()
+        return approval
+
+    def get(self, approval_request_id: str) -> ApprovalRequest | None:
+        return self.session.get(ApprovalRequest, approval_request_id)
+
+    def list_pending(self) -> Sequence[ApprovalRequest]:
+        statement: Select[tuple[ApprovalRequest]] = (
+            select(ApprovalRequest)
+            .where(ApprovalRequest.status == "pending")
+            .order_by(ApprovalRequest.created_at, ApprovalRequest.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+
+class PatchArtifactRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        agent_run_id: str,
+        diff_summary: str,
+        diff_sha256: str,
+        storage_path: str,
+        approval_request_id: str | None = None,
+    ) -> PatchArtifact:
+        patch = PatchArtifact(
+            agent_run_id=agent_run_id,
+            approval_request_id=approval_request_id,
+            diff_summary=diff_summary,
+            diff_sha256=diff_sha256,
+            storage_path=storage_path,
+        )
+        self.add(patch)
+        self.session.flush()
+        return patch
+
+
+class ValidationRunRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        agent_run_id: str,
+        command: str,
+        duration_ms: int,
+        patch_artifact_id: str | None = None,
+        status: ValidationStatus = ValidationStatus.PENDING,
+        exit_code: int | None = None,
+        output_summary: str | None = None,
+    ) -> ValidationRun:
+        validation = ValidationRun(
+            agent_run_id=agent_run_id,
+            patch_artifact_id=patch_artifact_id,
+            command=command,
+            status=status,
+            exit_code=exit_code,
+            duration_ms=duration_ms,
+            output_summary=output_summary,
+        )
+        self.add(validation)
+        self.session.flush()
+        return validation
+
+    def list_for_agent_run(self, agent_run_id: str) -> Sequence[ValidationRun]:
+        statement: Select[tuple[ValidationRun]] = (
+            select(ValidationRun)
+            .where(ValidationRun.agent_run_id == agent_run_id)
+            .order_by(ValidationRun.created_at, ValidationRun.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+
+class AuditEventRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        event_type: str,
+        summary: str,
+        subject_type: str,
+        subject_id: str | None,
+        actor_user_id: str | None = None,
+        agent_run_id: str | None = None,
+        trace_id: str | None = None,
+    ) -> AuditEvent:
+        event = AuditEvent(
+            actor_user_id=actor_user_id,
+            agent_run_id=agent_run_id,
+            event_type=event_type,
+            summary=summary,
+            subject_type=subject_type,
+            subject_id=subject_id,
+            trace_id=trace_id,
+        )
+        self.add(event)
+        self.session.flush()
+        return event
+
+    def list_for_run(self, agent_run_id: str) -> Sequence[AuditEvent]:
+        statement: Select[tuple[AuditEvent]] = (
+            select(AuditEvent)
+            .where(AuditEvent.agent_run_id == agent_run_id)
+            .order_by(AuditEvent.created_at, AuditEvent.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list_recent(self, *, limit: int = 100) -> Sequence[AuditEvent]:
+        statement: Select[tuple[AuditEvent]] = (
+            select(AuditEvent)
+            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
+            .limit(limit)
+        )
+        return self.session.execute(statement).scalars().all()
+
+
+class PolicyDecisionRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        decision: str,
+        policy_name: str,
+        reason: str,
+        enforced: bool,
+        agent_run_id: str | None = None,
+        tool_call_id: str | None = None,
+    ) -> PolicyDecision:
+        policy_decision = PolicyDecision(
+            agent_run_id=agent_run_id,
+            tool_call_id=tool_call_id,
+            decision=decision,
+            policy_name=policy_name,
+            reason=reason,
+            enforced=enforced,
+        )
+        self.add(policy_decision)
+        self.session.flush()
+        return policy_decision

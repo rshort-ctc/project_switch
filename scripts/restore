@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+backup_dir="${1:?usage: scripts/restore <backup-dir>}"
+compose="${COMPOSE:-docker compose}"
+
+test -f "$backup_dir/postgres.dump"
+
+$compose exec -T postgres pg_restore \
+  -U "${SWITCH_POSTGRES_USER:-switch}" \
+  -d "${SWITCH_POSTGRES_DB:-switch}" \
+  --clean \
+  --if-exists \
+  < "$backup_dir/postgres.dump"
+
+if [ -f "$backup_dir/workspaces.tgz" ]; then
+  tar -xzf "$backup_dir/workspaces.tgz"
+fi
+
+echo "restore complete"

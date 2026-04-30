@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+output_dir="${1:-backups/$timestamp}"
+mkdir -p "$output_dir"
+
+compose="${COMPOSE:-docker compose}"
+$compose exec -T postgres pg_dump \
+  -U "${SWITCH_POSTGRES_USER:-switch}" \
+  -d "${SWITCH_POSTGRES_DB:-switch}" \
+  --format=custom \
+  > "$output_dir/postgres.dump"
+
+if [ -d "${SWITCH_WORKSPACE_ROOT:-workspaces}" ]; then
+  tar -czf "$output_dir/workspaces.tgz" "${SWITCH_WORKSPACE_ROOT:-workspaces}"
+fi
+
+if [ -d "evals/reports" ]; then
+  tar -czf "$output_dir/eval-reports.tgz" evals/reports
+fi
+
+echo "$output_dir"

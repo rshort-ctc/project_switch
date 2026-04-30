@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+"${PYTHON:-.venv/bin/python}" -m app.evaluation.cli run "$@"

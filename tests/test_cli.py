@@ -1,0 +1,182 @@
+from collections.abc import Callable
+from typing import Any
+
+from typer.testing import CliRunner
+
+from app import cli
+from app.cli import app
+
+runner = CliRunner()
+
+
+def test_repo_add_calls_backend(monkeypatch) -> None:
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        api_url: str,
+        json_body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        calls.append((method, path, json_body))
+        return {
+            "id": "repo-1",
+            "name": "demo",
+            "local_path": "/tmp/demo",
+            "default_branch": "main",
+            "is_active": True,
+        }
+
+    monkeypatch.setattr(cli, "request_json", fake_request)
+
+    result = runner.invoke(app, ["repo", "add", "/tmp/demo", "--name", "demo"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        (
+            "POST",
+            "/repos",
+            {"name": "demo", "local_path": "/tmp/demo", "default_branch": "main"},
+        )
+    ]
+    assert "repo-1 demo /tmp/demo" in result.output
+
+
+def test_repo_index_json_output(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "request_json", _fake_request({"index_id": "idx-1"}))
+
+    result = runner.invoke(app, ["repo", "index", "repo-1", "--json"])
+
+    assert result.exit_code == 0
+    assert '"index_id": "idx-1"' in result.output
+
+
+def test_task_create_calls_backend(monkeypatch) -> None:
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        api_url: str,
+        json_body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        calls.append((method, path, json_body))
+        return {
+            "task": {"id": "task-1", "status": "pending"},
+            "run": {"id": "run-1", "status": "pending"},
+        }
+
+    monkeypatch.setattr(cli, "request_json", fake_request)
+
+    result = runner.invoke(
+        app,
+        [
+            "task",
+            "create",
+            "repo-1",
+            "Fix bug",
+            "--description",
+            "details",
+            "--created-by",
+            "user-1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls == [
+        (
+            "POST",
+            "/tasks",
+            {
+                "repository_id": "repo-1",
+                "created_by_user_id": "user-1",
+                "title": "Fix bug",
+                "description": "details",
+            },
+        )
+    ]
+    assert "task: task-1 pending" in result.output
+
+
+def test_task_diff_displays_changed_files(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "request_json",
+        _fake_request({"task_id": "task-1", "changed_files": ["app/main.py"], "diff": ""}),
+    )
+
+    result = runner.invoke(app, ["task", "diff", "task-1"])
+
+    assert result.exit_code == 0
+    assert "app/main.py" in result.output
+
+
+def test_approve_and_deny_call_backend(monkeypatch) -> None:
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        api_url: str,
+        json_body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        calls.append((method, path, json_body))
+        return {
+            "id": path.split("/")[2],
+            "status": "approved" if path.endswith("/approve") else "rejected",
+            "requested_action": "run_validation",
+            "risk_level": "medium",
+        }
+
+    monkeypatch.setattr(cli, "request_json", fake_request)
+
+    approve_result = runner.invoke(app, ["approve", "approval-1", "--user", "user-1"])
+    deny_result = runner.invoke(app, ["deny", "approval-2", "--user", "user-1", "--note", "no"])
+
+    assert approve_result.exit_code == 0
+    assert deny_result.exit_code == 0
+    assert calls == [
+        (
+            "POST",
+            "/approvals/approval-1/approve",
+            {"decided_by_user_id": "user-1", "decision_note": None},
+        ),
+        (
+            "POST",
+            "/approvals/approval-2/deny",
+            {"decided_by_user_id": "user-1", "decision_note": "no"},
+        ),
+    ]
+
+
+def test_local_only_blocks_non_local_backend() -> None:
+    result = runner.invoke(app, ["agent", "health", "--api-url", "https://example.com"])
+
+    assert result.exit_code != 0
+    assert "LOCAL_ONLY blocks non-local API endpoints" in result.output
+
+
+def _fake_request(extra: dict[str, Any]) -> Callable[..., dict[str, Any]]:
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        api_url: str,
+        json_body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "status": "ready",
+            "repository_id": "repo-1",
+            "indexed_files": 1,
+            "indexed_chunks": 1,
+            "skipped_ignored_files": 0,
+            "skipped_binary_files": 0,
+            "skipped_unchanged_files": 0,
+        }
+        payload.update(extra)
+        return payload
+
+    return fake_request

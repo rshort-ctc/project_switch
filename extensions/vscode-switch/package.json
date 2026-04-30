@@ -1,0 +1,202 @@
+{
+  "name": "switch-local-agent",
+  "displayName": "SWITCH Local Agent",
+  "description": "VS Code and Cursor client for the local SWITCH coding-agent backend.",
+  "version": "0.1.0",
+  "publisher": "switch-local",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:switch.repositories",
+    "onView:switch.tasks",
+    "onView:switch.approvals",
+    "onCommand:switch.connect",
+    "onCommand:switch.askRepo",
+    "onCommand:switch.createTaskFromSelection"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "SWITCH Local Agent",
+      "properties": {
+        "switch.apiUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "Local SWITCH backend URL. LOCAL_ONLY mode rejects non-local hosts."
+        },
+        "switch.localUserId": {
+          "type": "string",
+          "default": "",
+          "description": "Existing local SWITCH user id used for task creation and approval decisions."
+        },
+        "switch.selectedRepositoryId": {
+          "type": "string",
+          "default": "",
+          "description": "Registered repository id selected for ask and task commands."
+        },
+        "switch.defaultBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Default branch used when registering the current workspace."
+        },
+        "switch.maxAskBundles": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum retrieved context citations to request for repository questions."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "switch.connect",
+        "title": "SWITCH: Connect to Backend"
+      },
+      {
+        "command": "switch.refresh",
+        "title": "SWITCH: Refresh"
+      },
+      {
+        "command": "switch.registerWorkspace",
+        "title": "SWITCH: Register Current Workspace"
+      },
+      {
+        "command": "switch.selectRepository",
+        "title": "SWITCH: Select Registered Repo"
+      },
+      {
+        "command": "switch.indexRepository",
+        "title": "SWITCH: Index Selected Repo"
+      },
+      {
+        "command": "switch.askRepo",
+        "title": "SWITCH: Ask Repo Question"
+      },
+      {
+        "command": "switch.createTaskFromSelection",
+        "title": "SWITCH: Create Coding Task from Selection"
+      },
+      {
+        "command": "switch.createTaskFromFile",
+        "title": "SWITCH: Create Coding Task from Current File"
+      },
+      {
+        "command": "switch.openTask",
+        "title": "SWITCH: Show Task Status"
+      },
+      {
+        "command": "switch.openTaskDiff",
+        "title": "SWITCH: Show Proposed Diff"
+      },
+      {
+        "command": "switch.applyApprovedPatch",
+        "title": "SWITCH: Apply Approved Patch"
+      },
+      {
+        "command": "switch.openRetrievedFile",
+        "title": "SWITCH: Open Retrieved File"
+      },
+      {
+        "command": "switch.approve",
+        "title": "SWITCH: Approve Action"
+      },
+      {
+        "command": "switch.deny",
+        "title": "SWITCH: Deny Action"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "switch",
+          "title": "SWITCH",
+          "icon": "media/switch.svg"
+        }
+      ]
+    },
+    "views": {
+      "switch": [
+        {
+          "id": "switch.repositories",
+          "name": "Repositories"
+        },
+        {
+          "id": "switch.tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "switch.approvals",
+          "name": "Approvals"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "switch.refresh",
+          "when": "view == switch.repositories || view == switch.tasks || view == switch.approvals",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "switch.selectRepository",
+          "when": "view == switch.repositories && viewItem == switchRepository",
+          "group": "inline"
+        },
+        {
+          "command": "switch.openTask",
+          "when": "view == switch.tasks && viewItem == switchTask",
+          "group": "inline"
+        },
+        {
+          "command": "switch.openTaskDiff",
+          "when": "view == switch.tasks && viewItem == switchTask",
+          "group": "inline"
+        },
+        {
+          "command": "switch.applyApprovedPatch",
+          "when": "view == switch.tasks && viewItem == switchTask",
+          "group": "inline"
+        },
+        {
+          "command": "switch.approve",
+          "when": "view == switch.approvals && viewItem == switchApproval",
+          "group": "inline"
+        },
+        {
+          "command": "switch.deny",
+          "when": "view == switch.approvals && viewItem == switchApproval",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "switch.createTaskFromSelection",
+          "group": "switch"
+        },
+        {
+          "command": "switch.createTaskFromFile",
+          "group": "switch"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "check": "tsc -p ./ --noEmit",
+    "test": "npm run compile && node --test out/test/*.test.js",
+    "package": "npm run check"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.93.0",
+    "typescript": "^5.7.0"
+  }
+}

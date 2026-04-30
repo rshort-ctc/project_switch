@@ -1,0 +1,148 @@
+export type Timestamped = {
+  created_at: string;
+  updated_at: string;
+};
+
+export type HealthDetails = {
+  status: string;
+  app: string;
+  environment: string;
+  local_only: boolean;
+  audit_retention_days: number;
+  default_permission_level: number;
+  sandbox_network_enabled: boolean;
+  services: Record<string, { configured: boolean }>;
+};
+
+export type Repository = Timestamped & {
+  id: string;
+  name: string;
+  local_path: string;
+  default_branch: string;
+  is_active: boolean;
+};
+
+export type RepoIndex = {
+  repository_id: string;
+  index_id: string;
+  status: string;
+  commit_sha: string;
+  indexed_files: number;
+  indexed_chunks: number;
+  skipped_ignored_files: number;
+  skipped_binary_files: number;
+  skipped_unchanged_files: number;
+};
+
+export type RepoStatus = {
+  repository: Repository;
+  latest_index: RepoIndex | null;
+};
+
+export type AskContext = {
+  path: string;
+  start_line: number;
+  end_line: number;
+  score: number;
+  reasons: string[];
+};
+
+export type AskResponse = {
+  question: string;
+  answer: string;
+  contexts: AskContext[];
+};
+
+export type Task = Timestamped & {
+  id: string;
+  repository_id: string;
+  created_by_user_id: string;
+  title: string;
+  description: string;
+  status: string;
+};
+
+export type AgentRun = Timestamped & {
+  id: string;
+  task_id: string;
+  status: string;
+  base_branch: string;
+  target_branch: string | null;
+  model_name: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+export type TaskStatus = {
+  task: Task;
+  run: AgentRun | null;
+};
+
+export type TaskCreateResponse = TaskStatus;
+
+export type TaskDiff = {
+  task_id: string;
+  diff: string;
+  changed_files: string[];
+};
+
+export type TaskApplyPatchResponse = {
+  task_id: string;
+  success: boolean;
+  changed_files: string[];
+  added_files: string[];
+  deleted_files: string[];
+  patch_artifact_id: string | null;
+  rollback_artifact_id: string | null;
+  approval_required: boolean;
+  error_code: string | null;
+  error_message: string | null;
+};
+
+export type ValidationRun = Timestamped & {
+  id: string;
+  agent_run_id: string;
+  patch_artifact_id: string | null;
+  status: string;
+  command: string;
+  exit_code: number | null;
+  duration_ms: number;
+  output_summary: string | null;
+};
+
+export type ApprovalRequest = Timestamped & {
+  id: string;
+  task_id: string | null;
+  agent_run_id: string;
+  requested_by_user_id: string;
+  decided_by_user_id: string | null;
+  status: string;
+  requested_action: string;
+  risk_level: string;
+  reason: string;
+  diff_summary: string | null;
+  command: string | null;
+  decision_note: string | null;
+  denial_reason: string | null;
+  decided_at: string | null;
+};
+
+export type AuditEvent = Timestamped & {
+  id: string;
+  actor_user_id: string | null;
+  agent_run_id: string | null;
+  event_type: string;
+  summary: string;
+  subject_type: string;
+  subject_id: string | null;
+  trace_id: string | null;
+};
+
+export type ModelRoles = {
+  planner_model: string | null;
+  coder_model: string | null;
+  reviewer_model: string | null;
+  summarizer_model: string | null;
+  embedding_model: string | null;
+  reranker_model: string | null;
+};
