@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,12 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.courthouse import CourthouseService
+from app.db.repositories import RepositoryRepository
 from app.db.session import get_db_session
 from app.model_gateway import LocalModelGateway
 from app.model_gateway.errors import ModelGatewayError
 from app.model_gateway.schemas import ChatCompletionRequest, ChatMessage, ModelProvider, ModelRole
 from app.models.enums import Exposure
-from app.sandbox import ChatCodeRunner, ChatCodeRunRequest, ChatCodeRunResponse, SandboxRejected
+from app.sandbox import (
+    ChatCodeRunner,
+    ChatCodeRunRequest,
+    ChatCodeRunResponse,
+    ChatTerminalRunner,
+    ChatTerminalRunRequest,
+    ChatTerminalRunResponse,
+    SandboxRejected,
+)
 from app.schemas.cli_api import AskContext, ChatRequest, ChatResponse
 from app.services.audit import AuditService
 from app.services.repo_qa import (
@@ -206,6 +216,46 @@ def run_chat_code(request: ChatCodeRunRequest, session: SessionDependency) -> Ch
         ),
         subject_type="chat_code",
         subject_id=None,
+    )
+    session.commit()
+    return response
+
+
+@router.post("/terminal/run", response_model=ChatTerminalRunResponse)
+def run_chat_terminal(
+    request: ChatTerminalRunRequest, session: SessionDependency
+) -> ChatTerminalRunResponse:
+    repository = RepositoryRepository(session).get(request.repository_id)
+    if repository is None or not repository.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="repository not found")
+    AuditService(session).record(
+        event_type="chat.terminal_run.requested",
+        summary=f"chat terminal run requested command={request.command}",
+        subject_type="chat_terminal",
+        subject_id=repository.id,
+    )
+    try:
+        response = ChatTerminalRunner().run(request, workspace_path=Path(repository.local_path))
+    except SandboxRejected as exc:
+        AuditService(session).record(
+            event_type="chat.terminal_run.denied",
+            summary=str(exc),
+            subject_type="chat_terminal",
+            subject_id=repository.id,
+        )
+        session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    AuditService(session).record(
+        event_type="chat.terminal_run.completed",
+        summary=(
+            f"chat terminal run completed category={response.category} "
+            f"exit_code={response.exit_code} timed_out={response.timed_out}"
+        ),
+        subject_type="chat_terminal",
+        subject_id=repository.id,
     )
     session.commit()
     return response

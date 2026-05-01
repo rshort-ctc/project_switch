@@ -9,6 +9,8 @@ import type {
   ChatCodeRunRequest,
   ChatCodeRunResponse,
   ChatResponse,
+  ChatTerminalRunRequest,
+  ChatTerminalRunResponse,
   HealthDetails,
   ModelGatewayHealth,
   ModelCatalog,
@@ -160,4 +162,10 @@ export async function sendChatMessage(input: {
 
 export async function runChatCode(input: ChatCodeRunRequest): Promise<ChatCodeRunResponse> {
   return apiPost<ChatCodeRunResponse>("/chat/code/run", input);
+}
+
+export async function runChatTerminal(
+  input: ChatTerminalRunRequest,
+): Promise<ChatTerminalRunResponse> {
+  return apiPost<ChatTerminalRunResponse>("/chat/terminal/run", input);
 }

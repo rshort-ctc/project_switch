@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { runDashboardCode, sendDashboardChatMessage } from "@/app/actions";
+import { runDashboardCode, runDashboardTerminal, sendDashboardChatMessage } from "@/app/actions";
 import type { DashboardSurface } from "@/lib/surface";
 import type {
   ApprovalRequest,
@@ -29,6 +29,7 @@ import type {
   ChatCodeRunResponse,
   ChatMessage,
   ChatResponse,
+  ChatTerminalRunResponse,
   HealthDetails,
   ModelCatalog,
   ModelGatewayHealth,
@@ -99,12 +100,16 @@ export function ChatWorkspace({
   const [model, setModel] = useState("");
   const [maxBundles, setMaxBundles] = useState(6);
   const [showContext, setShowContext] = useState(true);
+  const [terminalCommand, setTerminalCommand] = useState("pwd");
+  const [terminalHistory, setTerminalHistory] = useState<ChatTerminalRunResponse[]>([]);
+  const [terminalError, setTerminalError] = useState<string | null>(null);
   const [consoleCode, setConsoleCode] = useState("print('hello from SWITCH')");
   const [consoleResult, setConsoleResult] = useState<ChatCodeRunResponse | null>(null);
   const [consoleError, setConsoleError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [isPending, startTransition] = useTransition();
+  const [isTerminalPending, startTerminalTransition] = useTransition();
   const [isCodePending, startCodeTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -258,6 +263,29 @@ export function ChatWorkspace({
         setConsoleResult(result);
       } catch (error) {
         setConsoleError(error instanceof Error ? error.message : "Code execution failed.");
+      }
+    });
+  }
+
+  function runTerminalCommand(): void {
+    if (!isHostSurface || !selectedRepository) {
+      return;
+    }
+    if (terminalCommand.trim().length === 0 || isTerminalPending) {
+      return;
+    }
+    const command = terminalCommand.trim();
+    setTerminalError(null);
+    startTerminalTransition(async () => {
+      try {
+        const result = await runDashboardTerminal({
+          repository_id: selectedRepository.id,
+          command,
+          timeout_seconds: 20,
+        });
+        setTerminalHistory((current) => [result, ...current].slice(0, 8));
+      } catch (error) {
+        setTerminalError(error instanceof Error ? error.message : "Terminal command failed.");
       }
     });
   }
@@ -479,6 +507,66 @@ export function ChatWorkspace({
 
       {showContext ? (
         <aside className="chat-context">
+          {isHostSurface ? (
+            <section>
+              <h2>Terminal</h2>
+              <div className="terminal-panel">
+                <form
+                  className="terminal-command-row"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    runTerminalCommand();
+                  }}
+                >
+                  <span className="terminal-prompt">$</span>
+                  <input
+                    aria-label="Terminal command"
+                    disabled={!selectedRepository}
+                    onChange={(event) => setTerminalCommand(event.target.value)}
+                    spellCheck={false}
+                    value={terminalCommand}
+                  />
+                  <button
+                    aria-label="Run terminal command"
+                    className="icon-button compact"
+                    disabled={
+                      !selectedRepository ||
+                      terminalCommand.trim().length === 0 ||
+                      isTerminalPending
+                    }
+                    type="submit"
+                  >
+                    {isTerminalPending ? <Loader2 size={14} /> : <Send size={14} />}
+                  </button>
+                </form>
+                <div className="console-meta">
+                  <span>{selectedRepository?.name ?? "No repo selected"}</span>
+                  <span>network off</span>
+                </div>
+                {terminalError ? <pre className="console-output error">{terminalError}</pre> : null}
+                {terminalHistory.length > 0 ? (
+                  <div className="terminal-history">
+                    {terminalHistory.map((result, index) => (
+                      <div className="terminal-result" key={`${result.command}-${index}`}>
+                        <div className="console-meta">
+                          <span className="mono">$ {result.command}</span>
+                          <span>
+                            exit {result.exit_code ?? "timeout"} · {result.duration_ms}ms
+                          </span>
+                        </div>
+                        {result.stdout ? (
+                          <pre className="console-output">{result.stdout}</pre>
+                        ) : null}
+                        {result.stderr ? (
+                          <pre className="console-output error">{result.stderr}</pre>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
           {isHostSurface ? (
             <section>
               <h2>Console</h2>

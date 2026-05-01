@@ -857,6 +857,61 @@ pre {
   padding: 10px;
 }
 
+.terminal-panel {
+  background: #080a0d;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.terminal-command-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.terminal-prompt {
+  color: var(--accent);
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+}
+
+.terminal-command-row input {
+  background: #0d1117;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono), monospace;
+  min-height: 34px;
+  min-width: 0;
+  outline: 0;
+  padding: 0 9px;
+}
+
+.terminal-command-row input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.terminal-history {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.terminal-result {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .console-header,
 .console-meta {
   align-items: center;

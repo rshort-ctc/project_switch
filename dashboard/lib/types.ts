@@ -139,6 +139,26 @@ export type ChatCodeRunResponse = {
   network_enabled: boolean;
 };
 
+export type ChatTerminalRunRequest = {
+  repository_id: string;
+  command: string;
+  timeout_seconds: number;
+};
+
+export type ChatTerminalRunResponse = {
+  repository_id: string;
+  command: string;
+  argv: string[];
+  category: string;
+  exit_code: number | null;
+  stdout: string;
+  stderr: string;
+  duration_ms: number;
+  timed_out: boolean;
+  truncated: boolean;
+  network_enabled: boolean;
+};
+
 export type HealthDetails = {
   status: string;
   app: string;

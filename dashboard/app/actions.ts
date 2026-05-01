@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ApiError, apiPost, runChatCode, sendChatMessage } from "@/lib/api";
+import { ApiError, apiPost, runChatCode, runChatTerminal, sendChatMessage } from "@/lib/api";
 import { requireHostSurface } from "@/lib/surface";
 import type {
   ApprovalRequest,
@@ -10,6 +10,8 @@ import type {
   ChatCodeRunResponse,
   ChatMessage,
   ChatResponse,
+  ChatTerminalRunRequest,
+  ChatTerminalRunResponse,
   Repository,
 } from "@/lib/types";
 
@@ -81,6 +83,29 @@ export async function runDashboardCode(input: ChatCodeRunRequest): Promise<ChatC
   } catch (error) {
     return {
       language: input.language,
+      exit_code: null,
+      stdout: "",
+      stderr: readableActionError(error),
+      duration_ms: 0,
+      timed_out: false,
+      truncated: false,
+      network_enabled: false,
+    };
+  }
+}
+
+export async function runDashboardTerminal(
+  input: ChatTerminalRunRequest,
+): Promise<ChatTerminalRunResponse> {
+  try {
+    requireHostSurface("Terminal");
+    return await runChatTerminal(input);
+  } catch (error) {
+    return {
+      repository_id: input.repository_id,
+      command: input.command,
+      argv: [],
+      category: "terminal",
       exit_code: null,
       stdout: "",
       stderr: readableActionError(error),

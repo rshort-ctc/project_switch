@@ -10,6 +10,7 @@ from app.sandbox.types import SandboxCommandCategory, SandboxResult, SandboxRunS
 
 MIN_PYTHON_MODULE_COMMAND_PARTS = 3
 MIN_PYTHON_B_FLAG_MODULE_COMMAND_PARTS = 4
+MIN_GIT_COMMAND_PARTS = 2
 
 
 class SandboxRejected(ValueError):
@@ -190,9 +191,21 @@ def _normalize_command(command: tuple[str, ...]) -> tuple[str, ...]:
     return command
 
 
-def _category_for(command: tuple[str, ...]) -> SandboxCommandCategory | None:  # noqa: PLR0911
+def _category_for(command: tuple[str, ...]) -> SandboxCommandCategory | None:  # noqa: PLR0911, PLR0912
     if command == ("python", "-B", "/workspace/main.py"):
         return SandboxCommandCategory.CODE
+    if command in {("pwd",), ("python", "--version"), ("python", "-V")}:
+        return SandboxCommandCategory.TERMINAL
+    if command[:1] == ("ls",):
+        return SandboxCommandCategory.TERMINAL
+    if command[:1] == ("rg",):
+        return SandboxCommandCategory.TERMINAL
+    if (
+        command[:1] == ("git",)
+        and len(command) >= MIN_GIT_COMMAND_PARTS
+        and command[1] in {"status", "diff", "log", "show", "branch"}
+    ):
+        return SandboxCommandCategory.TERMINAL
     if command[:1] == ("pytest",):
         return SandboxCommandCategory.TESTS
     if command[:3] in {("python", "-m", "pytest"), ("python", "-B", "-m")} and "pytest" in command:

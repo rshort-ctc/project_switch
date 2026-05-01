@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from app.sandbox import DockerSandboxRunner, SandboxLimits, SandboxRejected, SandboxRunSpec
-from app.sandbox.code_runner import CHAT_CODE_COMMAND, ChatCodeRunner, ChatCodeRunRequest
+from app.sandbox.code_runner import (
+    CHAT_CODE_COMMAND,
+    ChatCodeRunner,
+    ChatCodeRunRequest,
+    ChatTerminalRunner,
+    ChatTerminalRunRequest,
+)
 from app.sandbox.runner import ContainerProcessResult
 from app.sandbox.types import SandboxCommandCategory
 
@@ -103,6 +109,43 @@ def test_chat_code_runner_rejects_unavailable_workspace(tmp_path: Path) -> None:
 
     with pytest.raises(SandboxRejected, match="workspace is unavailable"):
         runner.run(ChatCodeRunRequest(code="print('ok')"))
+
+
+def test_terminal_runner_uses_selected_workspace_and_allowlist(tmp_path: Path) -> None:
+    runtime = CapturingRuntime(
+        result=ContainerProcessResult(returncode=0, stdout="/workspace\n", stderr="")
+    )
+    sandbox = DockerSandboxRunner(engine="docker", runtime=runtime)
+    runner = ChatTerminalRunner(runner=sandbox)
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+
+    result = runner.run(
+        ChatTerminalRunRequest(repository_id="repo-1", command="pwd", timeout_seconds=5),
+        workspace_path=workspace,
+    )
+
+    assert result.repository_id == "repo-1"
+    assert result.category == SandboxCommandCategory.TERMINAL
+    assert result.stdout == "/workspace\n"
+    assert result.network_enabled is False
+    assert runtime.args is not None
+    assert runtime.args[runtime.args.index("--network") + 1] == "none"
+    assert str(workspace) in " ".join(runtime.args)
+
+
+def test_terminal_runner_rejects_shell_commands(tmp_path: Path) -> None:
+    runner = ChatTerminalRunner(
+        runner=DockerSandboxRunner(engine="docker", runtime=CapturingRuntime())
+    )
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+
+    with pytest.raises(SandboxRejected, match="allowlist"):
+        runner.run(
+            ChatTerminalRunRequest(repository_id="repo-1", command="bash -lc 'echo bad'"),
+            workspace_path=workspace,
+        )
 
 
 def test_timeout_kills_container(tmp_path: Path) -> None:
