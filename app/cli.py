@@ -16,11 +16,13 @@ agent_app = typer.Typer(help="Inspect local agent backend state", no_args_is_hel
 repo_app = typer.Typer(help="Register and index repositories", no_args_is_help=True)
 task_app = typer.Typer(help="Create and inspect coding tasks", no_args_is_help=True)
 validation_app = typer.Typer(help="Inspect validation results", no_args_is_help=True)
+memory_app = typer.Typer(help="Governed memory and context compiler commands", no_args_is_help=True)
 
 app.add_typer(agent_app, name="agent")
 app.add_typer(repo_app, name="repo")
 app.add_typer(task_app, name="task")
 app.add_typer(validation_app, name="validation")
+app.add_typer(memory_app, name="memory")
 
 ApiUrlOption = Annotated[
     str,
@@ -128,12 +130,24 @@ def ask(
             "max_bundles": max_bundles,
         },
     )
-    lines = [payload["answer"]]
-    lines.extend(
-        f"{context['path']}:{context['start_line']}-{context['end_line']} "
-        f"score={context['score']:.2f}"
-        for context in payload.get("contexts", [])
-    )
+    lines = ["answer:", payload["answer"]]
+    if payload.get("degraded"):
+        reason = payload.get("degraded_reason") or "unknown"
+        lines.extend(["", f"degraded: {reason}"])
+    if payload.get("retrieval_summary"):
+        summary = payload["retrieval_summary"]
+        lanes = ", ".join(summary.get("lanes_used") or []) or "none"
+        lines.extend(
+            [
+                "",
+                f"contexts: {summary.get('total_bundles', 0)}",
+                f"lanes: {lanes}",
+            ]
+        )
+    if payload.get("contexts"):
+        lines.append("")
+        lines.append("citations:")
+    lines.extend(_ask_context_line(context) for context in payload.get("contexts", []))
     emit(payload, json_output=json_output, lines=lines)
 
 
@@ -182,6 +196,37 @@ def task_status(
     if payload.get("run") is not None:
         run = payload["run"]
         lines.append(f"run: {run['id']} {run['status']}")
+    if payload.get("current_state"):
+        lines.append(f"state: {payload['current_state']}")
+    lines.append(f"steps: {payload.get('agent_step_count', 0)}")
+    lines.append(f"tool calls: {payload.get('tool_call_count', 0)}")
+    lines.append(f"pending approvals: {payload.get('pending_approval_count', 0)}")
+    if payload.get("latest_failure_message"):
+        lines.append(f"latest failure: {payload['latest_failure_message']}")
+    emit(payload, json_output=json_output, lines=lines)
+
+
+@task_app.command("run")
+def task_run(
+    task_id: str,
+    actor_user_id: Annotated[
+        str | None, typer.Option("--actor-user-id", help="Local user id running the task.")
+    ] = None,
+    api_url: ApiUrlOption = DEFAULT_API_URL,
+    json_output: JsonOption = False,
+) -> None:
+    payload = request_json(
+        "POST",
+        f"/tasks/{task_id}/run",
+        api_url=api_url,
+        json_body={"actor_user_id": actor_user_id},
+    )
+    lines = [
+        f"task: {payload['task_id']}",
+        f"run: {payload['agent_run_id']}",
+        f"status: {payload['status']}",
+        f"status url: {payload['status_url']}",
+    ]
     emit(payload, json_output=json_output, lines=lines)
 
 
@@ -261,6 +306,81 @@ def validation_results(
     emit(payload, json_output=json_output, lines=lines)
 
 
+@memory_app.command("compile-context")
+def memory_compile_context(
+    task: str,
+    workspace: Annotated[str | None, typer.Option("--workspace")] = None,
+    mode: Annotated[str, typer.Option("--mode")] = "normal",
+    token_budget: Annotated[int, typer.Option("--token-budget", min=1)] = 4000,
+    exposure_ceiling: Annotated[str, typer.Option("--exposure-ceiling")] = "tool_safe",
+    include_raw_evidence: Annotated[bool, typer.Option("--raw-evidence/--no-raw-evidence")] = True,
+    api_url: ApiUrlOption = DEFAULT_API_URL,
+    json_output: JsonOption = False,
+) -> None:
+    payload = request_json(
+        "POST",
+        "/memory/context/compile",
+        api_url=api_url,
+        json_body={
+            "task": task,
+            "workspace": workspace,
+            "mode": mode,
+            "token_budget": token_budget,
+            "exposure_ceiling": exposure_ceiling,
+            "include_raw_evidence": include_raw_evidence,
+        },
+    )
+    lines = [
+        f"snapshot: {payload.get('snapshot_id')} {payload.get('snapshot_hash')}",
+        f"canonical: {len(payload.get('canonical_state', []))}",
+        f"facts: {len(payload.get('facts', []))}",
+        f"open loops: {len(payload.get('open_loops', []))}",
+        f"warnings: {len(payload.get('contradictions_warnings', []))}",
+        f"excluded: {len(payload.get('excluded_memories', []))}",
+    ]
+    emit(payload, json_output=json_output, lines=lines)
+
+
+@memory_app.command("health")
+def memory_health(
+    workspace: Annotated[str | None, typer.Option("--workspace")] = None,
+    api_url: ApiUrlOption = DEFAULT_API_URL,
+    json_output: JsonOption = False,
+) -> None:
+    path = "/memory/health" + (f"?workspace={workspace}" if workspace else "")
+    payload = request_json("GET", path, api_url=api_url)
+    lines = [f"ok: {payload.get('ok')}"]
+    lines.extend(
+        f"{key}: {len(value)}" for key, value in payload.items() if isinstance(value, list)
+    )
+    emit(payload, json_output=json_output, lines=lines)
+
+
+@memory_app.command("open-loop-add")
+def memory_open_loop_add(
+    title: str,
+    workspace: Annotated[str | None, typer.Option("--workspace")] = None,
+    next_action: Annotated[str | None, typer.Option("--next-action")] = None,
+    priority: Annotated[int, typer.Option("--priority")] = 0,
+    api_url: ApiUrlOption = DEFAULT_API_URL,
+    json_output: JsonOption = False,
+) -> None:
+    payload = request_json(
+        "POST",
+        "/memory/open-loops",
+        api_url=api_url,
+        json_body={
+            "title": title,
+            "workspace": workspace,
+            "next_action": next_action,
+            "priority": priority,
+        },
+    )
+    emit(
+        payload, json_output=json_output, lines=[f"open loop: {payload['id']} {payload['status']}"]
+    )
+
+
 def request_json(
     method: str,
     path: str,
@@ -319,6 +439,15 @@ def _approval_line(approval: dict[str, Any]) -> str:
     return (
         f"{approval['id']} {approval['status']} "
         f"{approval['requested_action']} risk={approval['risk_level']}"
+    )
+
+
+def _ask_context_line(context: dict[str, Any]) -> str:
+    lanes = ", ".join(context.get("lanes") or []) or "unknown"
+    reasons = "; ".join(context.get("reasons") or [])
+    return (
+        f"- {context['path']}:{context['start_line']}-{context['end_line']} "
+        f"score={context['score']:.2f} lanes={lanes}" + (f" reasons={reasons}" if reasons else "")
     )
 
 

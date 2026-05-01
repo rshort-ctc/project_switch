@@ -34,9 +34,22 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     vector_store_url: AnyHttpUrl = "http://localhost:6333"  # type: ignore[assignment]
     vllm_endpoint: AnyHttpUrl = "http://localhost:8001/v1"  # type: ignore[assignment]
+    ollama_endpoint: AnyHttpUrl = "http://localhost:11434/v1"  # type: ignore[assignment]
+    artifact_root: str = ".switch/artifacts"
+    workspace_root: str = "./workspaces"
+    courthouse_enabled: bool = True
+    courthouse_context_default_exposure: Literal[
+        "private_internal",
+        "user_visible",
+        "tool_safe",
+        "repo_safe",
+        "public_safe",
+        "never_export",
+    ] = "tool_safe"
     model_request_timeout_seconds: float = 30.0
     model_max_retries: int = 2
     model_retry_backoff_seconds: float = 0.2
+    allow_ollama_cloud_models: bool = False
     sandbox_engine: Literal["auto", "docker", "podman"] = "auto"
     sandbox_image: str = "python:3.12-slim"
     sandbox_cpu_count: float = 1.0
@@ -56,6 +69,7 @@ class Settings(BaseSettings):
     reranker_model: str | None = None
 
     protected_branches: tuple[str, ...] = ("main", "master", "release", "production")
+    allowed_repo_roots: tuple[str, ...] = ("./workspaces",)
     allowed_network_cidrs: tuple[str, ...] = (
         "127.0.0.0/8",
         "10.0.0.0/8",
@@ -70,6 +84,12 @@ class Settings(BaseSettings):
         "redis",
         "qdrant",
         "model-gateway",
+        "switch-api",
+        "switch-web",
+        "switch-db",
+        "switch-redis",
+        "switch-qdrant",
+        "switch-vllm",
         "host.docker.internal",
     )
 
@@ -94,6 +114,14 @@ class Settings(BaseSettings):
         cleaned = tuple(branch.strip() for branch in value if branch.strip())
         if not cleaned:
             raise ValueError("at least one protected branch must be configured")
+        return cleaned
+
+    @field_validator("allowed_repo_roots")
+    @classmethod
+    def validate_allowed_repo_roots(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(root.strip() for root in value if root.strip())
+        if not cleaned:
+            raise ValueError("at least one allowed repo root must be configured")
         return cleaned
 
     @field_validator("model_request_timeout_seconds")
@@ -153,6 +181,7 @@ class Settings(BaseSettings):
         for name, endpoint in {
             "vector_store_url": str(self.vector_store_url),
             "vllm_endpoint": str(self.vllm_endpoint),
+            "ollama_endpoint": str(self.ollama_endpoint),
         }.items():
             if not self.endpoint_is_local(endpoint):
                 raise ValueError(f"{name} must point to localhost or an approved local network")

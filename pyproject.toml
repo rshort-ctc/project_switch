@@ -19,6 +19,7 @@ dependencies = [
 [project.scripts]
 switch = "app.cli:app"
 switch-eval = "app.evaluation.cli:app"
+switch-mcp = "app.mcp_server:main"
 
 [project.optional-dependencies]
 dev = [

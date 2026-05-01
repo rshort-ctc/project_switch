@@ -15,7 +15,35 @@ from app.retrieval.types import (
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_./-]{3,}")
 DEFAULT_MAX_TERMS = 8
+MIN_EXACT_TERM_LENGTH = 4
 REPO_PATH_AND_QUERY_ARGS = 2
+QUERY_STOPWORDS = {
+    "about",
+    "can",
+    "check",
+    "code",
+    "current",
+    "file",
+    "files",
+    "find",
+    "hello",
+    "help",
+    "how",
+    "look",
+    "please",
+    "repo",
+    "repository",
+    "show",
+    "switch",
+    "tell",
+    "that",
+    "the",
+    "this",
+    "what",
+    "where",
+    "with",
+    "you",
+}
 
 
 @dataclass(frozen=True)
@@ -329,12 +357,20 @@ def _query_terms(task: str) -> tuple[str, ...]:
     seen: set[str] = set()
     for match in TOKEN_PATTERN.finditer(task):
         term = match.group(0).strip().lower()
+        if _is_weak_query_term(term):
+            continue
         if term not in seen:
             terms.append(term)
             seen.add(term)
         if len(terms) >= DEFAULT_MAX_TERMS:
             break
     return tuple(terms)
+
+
+def _is_weak_query_term(term: str) -> bool:
+    if term in QUERY_STOPWORDS:
+        return True
+    return len(term) < MIN_EXACT_TERM_LENGTH and not any(character in term for character in "_./-")
 
 
 def _chunk_for_line(chunks: list[CodeChunk], line_number: int) -> CodeChunk | None:

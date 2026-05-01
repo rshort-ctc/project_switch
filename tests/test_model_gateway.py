@@ -16,6 +16,7 @@ from app.model_gateway.schemas import (
     ChatCompletionRequest,
     ChatMessage,
     EmbeddingRequest,
+    ModelProvider,
     ModelRole,
     RerankRequest,
 )
@@ -100,6 +101,45 @@ def test_chat_completion_uses_openai_compatible_endpoint() -> None:
     assert response.total_tokens == CHAT_TOTAL_TOKENS
 
 
+def test_chat_completion_accepts_model_override() -> None:
+    seen_payload: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_payload.update(json.loads(request.content))
+        return httpx.Response(
+            HTTP_OK,
+            json={
+                "model": "qwen2.5-coder:7b",
+                "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            },
+        )
+
+    gateway = make_gateway(httpx.MockTransport(handler))
+    response = gateway.chat_completion(
+        ChatCompletionRequest(
+            role=ModelRole.CODER,
+            model_override="qwen2.5-coder:7b",
+            messages=[ChatMessage(role="user", content="hello")],
+        )
+    )
+
+    assert seen_payload["model"] == "qwen2.5-coder:7b"
+    assert response.model == "qwen2.5-coder:7b"
+
+
+def test_list_models_returns_model_ids() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        return httpx.Response(
+            HTTP_OK,
+            json={"data": [{"id": "qwen2.5-coder:7b"}, {"id": "llama3.1:8b"}]},
+        )
+
+    gateway = make_gateway(httpx.MockTransport(handler))
+
+    assert gateway.list_models() == ["qwen2.5-coder:7b", "llama3.1:8b"]
+
+
 def test_embedding_request_returns_vectors() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/embeddings"
@@ -158,6 +198,20 @@ def test_health_checks_model_server() -> None:
     assert response.status == "ok"
     assert response.model_count == MODEL_COUNT
     assert response.local_only is True
+
+
+def test_ollama_provider_reports_ollama_endpoint() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        return httpx.Response(HTTP_OK, json={"data": []})
+
+    settings = make_settings(ollama_endpoint="http://localhost:11434/v1")
+    gateway = make_gateway(httpx.MockTransport(handler), settings=settings)
+    gateway.provider = ModelProvider.OLLAMA_LOCAL
+
+    response = gateway.health()
+
+    assert response.endpoint == "http://localhost:11434/v1"
 
 
 def test_retry_policy_recovers_from_transient_failure() -> None:

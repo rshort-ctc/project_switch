@@ -23,6 +23,13 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 - `SWITCH_DEFAULT_PERMISSION_LEVEL=1`
 - `SWITCH_ALLOWED_LOCAL_HOSTS=["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]`
 
+## Dashboard Surfaces
+
+- `SWITCH_DASHBOARD_SURFACE=host` for the local host dashboard.
+- `SWITCH_DASHBOARD_PORT=3000` and `SWITCH_DASHBOARD_BIND=127.0.0.1` for the host dashboard.
+- `SWITCH_WEB_PORT=3001` and `SWITCH_WEB_BIND=0.0.0.0` for the limited network web surface.
+- `SWITCH_WEB_API_URL=http://switch-api:8000` for the Docker web container to reach the backend on the Compose network.
+
 ## Model Roles
 
 - `SWITCH_PLANNER_MODEL`

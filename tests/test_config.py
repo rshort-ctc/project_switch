@@ -11,6 +11,7 @@ def test_settings_default_to_local_only() -> None:
 
     assert settings.local_only is True
     assert settings.endpoint_is_local(str(settings.vllm_endpoint))
+    assert settings.endpoint_is_local(str(settings.ollama_endpoint))
     assert settings.endpoint_is_local(str(settings.vector_store_url))
 
 
@@ -19,10 +20,16 @@ def test_local_only_rejects_public_vllm_endpoint() -> None:
         Settings(vllm_endpoint="https://api.openai.com/v1")
 
 
+def test_local_only_rejects_public_ollama_endpoint() -> None:
+    with pytest.raises(ValidationError, match="ollama_endpoint"):
+        Settings(ollama_endpoint="https://ollama.com/v1")
+
+
 def test_local_only_allows_configured_compose_service_hosts() -> None:
     settings = Settings(
-        vector_store_url="http://qdrant:6333",
-        vllm_endpoint="http://model-gateway:8001/v1",
+        vector_store_url="http://switch-qdrant:6333",
+        vllm_endpoint="http://switch-vllm:8001/v1",
+        _env_file=None,
     )
 
     assert settings.endpoint_is_local(str(settings.vector_store_url))
@@ -30,9 +37,12 @@ def test_local_only_allows_configured_compose_service_hosts() -> None:
 
 
 def test_local_only_allows_host_ollama_for_compose() -> None:
-    settings = Settings(vllm_endpoint="http://host.docker.internal:11434/v1")
+    settings = Settings(
+        ollama_endpoint="http://host.docker.internal:11434/v1",
+        vllm_endpoint="http://host.docker.internal:8001/v1",
+    )
 
-    assert settings.endpoint_is_local(str(settings.vllm_endpoint))
+    assert settings.endpoint_is_local(str(settings.ollama_endpoint))
 
 
 def test_public_endpoint_can_only_be_configured_when_local_only_is_disabled() -> None:
@@ -40,6 +50,11 @@ def test_public_endpoint_can_only_be_configured_when_local_only_is_disabled() ->
 
     assert settings.local_only is False
     assert str(settings.vllm_endpoint) == "https://internal.example.invalid/v1"
+
+
+def test_local_only_rejects_public_qdrant_endpoint() -> None:
+    with pytest.raises(ValidationError, match="vector_store_url"):
+        Settings(vector_store_url="https://cloud.qdrant.io")
 
 
 def test_requires_protected_branches() -> None:

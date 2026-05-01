@@ -5,7 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv/switch
 
-RUN addgroup --system switch && adduser --system --ingroup switch switch
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ripgrep ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system switch \
+    && adduser --system --ingroup switch switch
 
 COPY pyproject.toml README.md ./
 COPY alembic.ini ./

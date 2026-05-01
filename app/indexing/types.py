@@ -12,6 +12,14 @@ class ChunkType(StrEnum):
     EXPORT = "export"
 
 
+class SourceKind(StrEnum):
+    CODE = "code"
+    DOCS = "docs"
+    SYMBOL = "symbol"
+    TEST = "test"
+    CONFIG = "config"
+
+
 class SymbolKind(StrEnum):
     FUNCTION = "function"
     CLASS = "class"
@@ -53,6 +61,9 @@ class CodeChunk:
     end_line: int
     symbol_name: str | None = None
     git_commit: str | None = None
+    repo_id: str | None = None
+    repo_name: str | None = None
+    source_kind: SourceKind = SourceKind.CODE
 
 
 @dataclass(frozen=True)

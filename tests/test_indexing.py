@@ -1,7 +1,12 @@
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
-from app.indexing import InMemoryVectorStore, RepoIndexer
+from app.db.repositories import RepoIndexRepository
+from app.indexing import InMemoryVectorStore, PersistentRepoIndexer, RepoIndexer
+from app.indexing.exact_search import RipgrepSearcher
+from app.indexing.git import current_commit, recent_history, tracked_and_untracked_files
+from app.services import RunService
 
 INDEXED_CODE_FILES = 2
 MIN_IGNORED_FILES = 2
@@ -130,3 +135,45 @@ def test_incremental_reindex_skips_unchanged_files(tmp_path: Path) -> None:
     assert second.status.skipped_unchanged_files == INDEXED_CODE_FILES
     assert third.status.indexed_files == 1
     assert third.status.skipped_unchanged_files == 1
+
+
+def test_git_helpers_degrade_when_git_is_unavailable(tmp_path: Path) -> None:
+    repo = create_test_repo(tmp_path)
+    with patch("app.indexing.git.subprocess.run", side_effect=FileNotFoundError):
+        assert current_commit(repo) is None
+        assert tracked_and_untracked_files(repo) is None
+        assert recent_history(repo) == []
+
+
+def test_exact_search_degrades_when_ripgrep_is_unavailable(tmp_path: Path) -> None:
+    repo = create_test_repo(tmp_path)
+    with patch("app.indexing.exact_search.subprocess.run", side_effect=FileNotFoundError):
+        assert RipgrepSearcher(repo).search("authenticate_user") == []
+
+
+def test_persistent_indexer_records_status_in_postgresql(tmp_path: Path, session) -> None:
+    repo = create_test_repo(tmp_path)
+    run_service = RunService(session)
+    run_service.create_user(email="indexer@example.test", display_name="Indexer")
+    repository = run_service.register_repository(
+        name="switch",
+        local_path=str(repo),
+        default_branch="main",
+    )
+    vector_store = InMemoryVectorStore()
+    indexer = PersistentRepoIndexer(
+        session=session,
+        repository_id=repository.id,
+        repository_name=repository.name,
+        embedder=KeywordEmbedder(),
+        vector_store=vector_store,
+    )
+
+    snapshot = indexer.index(repo)
+    persisted = RepoIndexRepository(session).latest_for_repository(repository.id)
+
+    assert persisted is not None
+    assert persisted.status == "ready"
+    assert persisted.indexed_file_count == snapshot.status.indexed_files
+    assert persisted.indexed_chunk_count == snapshot.status.indexed_chunks
+    assert all(record.chunk.repo_id == repository.id for record in vector_store.records.values())

@@ -191,6 +191,8 @@ def _normalize_command(command: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _category_for(command: tuple[str, ...]) -> SandboxCommandCategory | None:  # noqa: PLR0911
+    if command == ("python", "-B", "/workspace/main.py"):
+        return SandboxCommandCategory.CODE
     if command[:1] == ("pytest",):
         return SandboxCommandCategory.TESTS
     if command[:3] in {("python", "-m", "pytest"), ("python", "-B", "-m")} and "pytest" in command:

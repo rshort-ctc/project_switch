@@ -1,16 +1,17 @@
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
-from app.indexing import InMemoryVectorStore, RepoIndexer
-from app.indexing.embeddings import DeterministicEmbedder
-from app.retrieval.engine import RetrievalEngine
-from app.retrieval.types import RetrievalQuery
-from app.schemas.cli_api import AskContext, AskRequest, AskResponse
-from app.services.runs import RunService
+from app.schemas.cli_api import AskRequest, AskResponse
+from app.services.repo_qa import (
+    RepoQAService,
+    RepositoryNotFoundError,
+    RepositoryNotIndexedError,
+    RepositoryPathError,
+    RetrievalUnavailableError,
+)
 
 router = APIRouter(prefix="/ask", tags=["ask"])
 
@@ -19,35 +20,29 @@ SessionDependency = Annotated[Session, Depends(get_db_session)]
 
 @router.post("", response_model=AskResponse)
 def ask_question(request: AskRequest, session: SessionDependency) -> AskResponse:
-    repository = RunService(session).repositories.get(request.repository_id)
-    if repository is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="repository not found")
-
-    repo_path = Path(repository.local_path)
-    if not repo_path.exists() or not repo_path.is_dir():
+    try:
+        result = RepoQAService(session).answer_question(
+            repository_id=request.repository_id,
+            question=request.question,
+            max_bundles=request.max_bundles,
+        )
+    except RepositoryNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="repository not found",
+        ) from exc
+    except RepositoryNotIndexedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except RepositoryPathError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="repository path is not a readable directory",
-        )
-
-    indexer = RepoIndexer(
-        embedder=DeterministicEmbedder(),
-        vector_store=InMemoryVectorStore(),
-    )
-    snapshot = indexer.index(repo_path)
-    result = RetrievalEngine(indexer=indexer, snapshot=snapshot).retrieve(
-        RetrievalQuery(task=request.question, max_bundles=request.max_bundles)
-    )
-
-    contexts = [
-        AskContext(
-            path=bundle.citation.file_path,
-            start_line=bundle.citation.start_line,
-            end_line=bundle.citation.end_line,
-            score=bundle.score,
-            reasons=list(bundle.reasons),
-        )
-        for bundle in result.bundles
-    ]
-    answer = f"Found {len(contexts)} relevant context bundle(s) for the question."
-    return AskResponse(question=request.question, answer=answer, contexts=contexts)
+        ) from exc
+    except RetrievalUnavailableError as exc:
+        session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    session.commit()
+    return RepoQAService(session).to_ask_response(result)

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from app.models.entities import (
     AgentStep,
     ApprovalRequest,
     AuditEvent,
+    ModelCall,
     PatchArtifact,
     PolicyDecision,
     RepoIndex,
@@ -17,7 +19,7 @@ from app.models.entities import (
     User,
     ValidationRun,
 )
-from app.models.enums import ValidationStatus
+from app.models.enums import RepoIndexStatus, ValidationStatus
 
 
 class BaseRepository:
@@ -49,6 +51,12 @@ class RepositoryRepository(BaseRepository):
     def get(self, repository_id: str) -> Repository | None:
         return self.session.get(Repository, repository_id)
 
+    def get_by_local_path(self, local_path: str) -> Repository | None:
+        statement: Select[tuple[Repository]] = select(Repository).where(
+            Repository.local_path == local_path
+        )
+        return self.session.execute(statement).scalars().first()
+
     def list(self) -> Sequence[Repository]:
         statement: Select[tuple[Repository]] = select(Repository).order_by(
             Repository.created_at, Repository.id
@@ -70,6 +78,36 @@ class RepoIndexRepository(BaseRepository):
             .order_by(RepoIndex.created_at.desc(), RepoIndex.id.desc())
         )
         return self.session.execute(statement).scalars().first()
+
+    def mark_ready(
+        self,
+        *,
+        repo_index_id: str,
+        indexed_file_count: int,
+        indexed_chunk_count: int,
+        vector_collection: str,
+    ) -> RepoIndex:
+        index = self.session.get(RepoIndex, repo_index_id)
+        if index is None:
+            raise ValueError(f"repo index not found: {repo_index_id}")
+        index.status = RepoIndexStatus.READY
+        index.indexed_at = datetime.now(UTC)
+        index.indexed_file_count = indexed_file_count
+        index.indexed_chunk_count = indexed_chunk_count
+        index.vector_collection = vector_collection
+        index.exact_index_ready = True
+        index.symbol_index_ready = True
+        index.semantic_index_ready = True
+        index.git_metadata_ready = True
+        return index
+
+    def mark_failed(self, *, repo_index_id: str, error_message: str) -> RepoIndex:
+        index = self.session.get(RepoIndex, repo_index_id)
+        if index is None:
+            raise ValueError(f"repo index not found: {repo_index_id}")
+        index.status = RepoIndexStatus.FAILED
+        index.error_message = error_message
+        return index
 
 
 class TaskRepository(BaseRepository):
@@ -325,3 +363,41 @@ class PolicyDecisionRepository(BaseRepository):
         self.add(policy_decision)
         self.session.flush()
         return policy_decision
+
+
+class ModelCallRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        model_role: str,
+        model_name: str,
+        endpoint: str,
+        status: str,
+        request_summary: str,
+        response_summary: str | None = None,
+        agent_run_id: str | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        total_tokens: int | None = None,
+        duration_ms: int = 0,
+        error: str | None = None,
+        request_metadata: dict[str, object] | None = None,
+    ) -> ModelCall:
+        call = ModelCall(
+            agent_run_id=agent_run_id,
+            model_role=model_role,
+            model_name=model_name,
+            endpoint=endpoint,
+            status=status,
+            request_summary=request_summary,
+            response_summary=response_summary,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            duration_ms=duration_ms,
+            error=error,
+            request_metadata=request_metadata or {},
+        )
+        self.add(call)
+        self.session.flush()
+        return call

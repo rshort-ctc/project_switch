@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AlertTriangle, CheckCircle2, MessageSquare, Server } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -14,8 +15,13 @@ import {
   getRepositories,
   getTasks,
 } from "@/lib/api";
+import { isWebSurface } from "@/lib/surface";
 
 export default async function DashboardHome() {
+  if (isWebSurface()) {
+    redirect("/chat");
+  }
+
   const [repos, tasks, approvals, auditEvents, health, modelRoles, modelGateway] = await Promise.all([
     getRepositories(),
     getTasks(),

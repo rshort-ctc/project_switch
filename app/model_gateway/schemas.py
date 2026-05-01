@@ -12,6 +12,12 @@ class ModelRole(StrEnum):
     RERANKER = "reranker_model"
 
 
+class ModelProvider(StrEnum):
+    LOCAL_VLLM = "local_vllm"
+    OLLAMA_LOCAL = "ollama_local"
+    OLLAMA_CLOUD = "ollama_cloud"
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -23,6 +29,7 @@ class ChatCompletionRequest(BaseModel):
     temperature: float = 0.0
     max_tokens: int | None = Field(default=None, gt=0)
     stream: bool = False
+    model_override: str | None = Field(default=None, min_length=1)
 
 
 class ChatCompletionResponse(BaseModel):
@@ -68,3 +75,7 @@ class ModelHealthResponse(BaseModel):
     endpoint: str
     model_count: int
     local_only: bool
+
+
+class ModelListResponse(BaseModel):
+    models: list[str]

@@ -16,7 +16,7 @@ If you already run Ollama on the host, use its OpenAI-compatible endpoint from
 Compose:
 
 ```bash
-SWITCH_VLLM_ENDPOINT=http://host.docker.internal:11434/v1
+SWITCH_OLLAMA_ENDPOINT=http://host.docker.internal:11434/v1
 ```
 
 The Ollama service must listen on an address reachable from Docker containers.
@@ -34,9 +34,10 @@ sudo systemctl restart ollama
 Only expose that listener on trusted local networks. Use host firewall rules if
 the machine is on an untrusted LAN.
 
-`SWITCH_LOCAL_ONLY=true` rejects public model endpoints. Configure model roles
-with `SWITCH_PLANNER_MODEL`, `SWITCH_CODER_MODEL`, `SWITCH_REVIEWER_MODEL`,
-`SWITCH_SUMMARIZER_MODEL`, `SWITCH_EMBEDDING_MODEL`, and `SWITCH_RERANKER_MODEL`.
+`SWITCH_LOCAL_ONLY=true` rejects public vLLM and Ollama endpoints. Configure
+model roles with `SWITCH_PLANNER_MODEL`, `SWITCH_CODER_MODEL`,
+`SWITCH_REVIEWER_MODEL`, `SWITCH_SUMMARIZER_MODEL`, `SWITCH_EMBEDDING_MODEL`,
+and `SWITCH_RERANKER_MODEL`.
 
 For Ollama, use local model names from `ollama list`, for example:
 
@@ -51,8 +52,23 @@ SWITCH_EMBEDDING_MODEL=nomic-embed-text:latest
 Avoid Ollama entries ending in `:cloud` for LOCAL_ONLY deployments because those
 delegate inference outside the local machine.
 
+The chat UI can override the configured role model per request. It discovers
+available model IDs from `/model-gateway/catalog`. The provider selector routes
+vLLM requests through `SWITCH_VLLM_ENDPOINT` and Ollama requests through
+`SWITCH_OLLAMA_ENDPOINT`. Ollama cloud models require both:
+
+```bash
+SWITCH_LOCAL_ONLY=false
+SWITCH_ALLOW_OLLAMA_CLOUD_MODELS=true
+```
+
+That opt-in is intentionally separate because prompts and repository context may
+leave the local network when an Ollama cloud model is selected.
+
 Troubleshooting:
 
 - `/agent/models` shows configured role names.
 - `/model-gateway/health` requires a running local model server.
+- `/model-gateway/catalog` lists providers and live model IDs when the model
+  server is reachable.
 - Changing embedding models requires reindexing affected repositories.

@@ -256,3 +256,41 @@ def test_ignored_and_secret_files_are_not_retrieved(tmp_path: Path) -> None:
     assert ".env" not in paths
     assert "secret_config.py" not in paths
     assert all("API_KEY" not in bundle.text for bundle in result.bundles)
+
+
+def test_generated_next_cache_files_are_not_indexed(tmp_path: Path) -> None:
+    repo = _create_retrieval_repo(tmp_path)
+    next_cache = repo / "dashboard" / ".next" / "dev" / "server" / "app"
+    next_cache.mkdir(parents=True)
+    (next_cache / "react-loadable-manifest.json").write_text(
+        '{"hello":"generated cache"}',
+        encoding="utf-8",
+    )
+    indexer = RepoIndexer(embedder=KeywordEmbedder(), vector_store=InMemoryVectorStore())
+    snapshot = indexer.index(repo)
+
+    indexed_paths = {indexed_file.metadata.relative_path for indexed_file in snapshot.files}
+
+    assert "dashboard/.next/dev/server/app/react-loadable-manifest.json" not in indexed_paths
+
+
+def test_conversational_stopwords_do_not_drive_exact_retrieval(tmp_path: Path) -> None:
+    repo = _create_retrieval_repo(tmp_path)
+    indexer = RepoIndexer(embedder=KeywordEmbedder(), vector_store=InMemoryVectorStore())
+    snapshot = indexer.index(repo)
+
+    result = RetrievalEngine().retrieve(
+        RetrievalQuery(
+            task="hello can you check the current repo",
+            max_bundles=8,
+            max_context_tokens=FULL_CONTEXT_BUDGET,
+            per_lane_limit=8,
+        ),
+        snapshot=snapshot,
+        indexer=indexer,
+    )
+
+    assert all(
+        not any("exact text match for 'hello'" in reason for reason in bundle.reasons)
+        for bundle in result.bundles
+    )

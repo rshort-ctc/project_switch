@@ -21,6 +21,7 @@ from app.model_gateway.schemas import (
     EmbeddingRequest,
     EmbeddingResponse,
     ModelHealthResponse,
+    ModelProvider,
     ModelRole,
     RerankRequest,
     RerankResponse,
@@ -42,8 +43,10 @@ class LocalModelGateway:
         *,
         settings: Settings | None = None,
         client: httpx.Client | None = None,
+        provider: ModelProvider = ModelProvider.LOCAL_VLLM,
     ) -> None:
         self.settings = settings or get_settings()
+        self.provider = provider
         self.registry = ModelRegistry(self.settings)
         self.retry_policy = RetryPolicy(
             timeout_seconds=self.settings.model_request_timeout_seconds,
@@ -51,24 +54,32 @@ class LocalModelGateway:
             backoff_seconds=self.settings.model_retry_backoff_seconds,
         )
         self._client = client or httpx.Client(
-            base_url=str(self.settings.vllm_endpoint),
+            base_url=self._base_url(),
             timeout=self.retry_policy.timeout_seconds,
         )
 
     def health(self) -> ModelHealthResponse:
-        response = self._request("GET", "/models")
-        models = response.get("data", [])
-        if not isinstance(models, list):
-            raise ModelGatewayResponseError("model health response did not include a model list")
+        models = self.list_models()
         return ModelHealthResponse(
             status="ok",
-            endpoint=str(self.settings.vllm_endpoint),
+            endpoint=self._base_url(),
             model_count=len(models),
             local_only=self.settings.local_only,
         )
 
+    def list_models(self) -> list[str]:
+        response = self._request("GET", "/models")
+        models = response.get("data", [])
+        if not isinstance(models, list):
+            raise ModelGatewayResponseError("model health response did not include a model list")
+        model_ids: list[str] = []
+        for model in models:
+            if isinstance(model, dict) and isinstance(model.get("id"), str):
+                model_ids.append(model["id"])
+        return model_ids
+
     def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
-        model = self.registry.model_for(request.role)
+        model = request.model_override or self.registry.model_for(request.role)
         payload: dict[str, Any] = {
             "model": model,
             "messages": [message.model_dump() for message in request.messages],
@@ -90,7 +101,7 @@ class LocalModelGateway:
         return self._parse_chat_response(response)
 
     def stream_chat_completion(self, request: ChatCompletionRequest) -> Iterator[str]:
-        model = self.registry.model_for(request.role)
+        model = request.model_override or self.registry.model_for(request.role)
         payload: dict[str, Any] = {
             "model": model,
             "messages": [message.model_dump() for message in request.messages],
@@ -183,6 +194,11 @@ class LocalModelGateway:
         raise ModelGatewayConnectionError(
             f"model gateway request failed: {last_error}"
         ) from last_error
+
+    def _base_url(self) -> str:
+        if self.provider in {ModelProvider.OLLAMA_LOCAL, ModelProvider.OLLAMA_CLOUD}:
+            return str(self.settings.ollama_endpoint)
+        return str(self.settings.vllm_endpoint)
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:

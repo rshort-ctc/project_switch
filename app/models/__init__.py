@@ -5,6 +5,12 @@ from app.models.entities import (
     AgentStep,
     ApprovalRequest,
     AuditEvent,
+    CanonicalState,
+    Claim,
+    ContextSnapshot,
+    EvidenceItem,
+    ModelCall,
+    OpenLoop,
     PatchArtifact,
     PolicyDecision,
     RepoIndex,
@@ -13,6 +19,7 @@ from app.models.entities import (
     ToolCall,
     User,
     ValidationRun,
+    VerdictRecord,
 )
 
 __all__ = [
@@ -20,6 +27,12 @@ __all__ = [
     "AgentStep",
     "ApprovalRequest",
     "AuditEvent",
+    "CanonicalState",
+    "Claim",
+    "ContextSnapshot",
+    "EvidenceItem",
+    "ModelCall",
+    "OpenLoop",
     "PatchArtifact",
     "PolicyDecision",
     "RepoIndex",
@@ -28,4 +41,5 @@ __all__ = [
     "ToolCall",
     "User",
     "ValidationRun",
+    "VerdictRecord",
 ]

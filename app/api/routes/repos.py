@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -7,13 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.db.repositories import RepoIndexRepository
 from app.db.session import get_db_session
-from app.indexing import InMemoryVectorStore, RepoIndexer
-from app.indexing.embeddings import DeterministicEmbedder
+from app.indexing import PersistentRepoIndexer, QdrantVectorStore
+from app.indexing.embeddings import LocalModelEmbedder
+from app.model_gateway.errors import ModelGatewayError
 from app.models.entities import Repository
-from app.models.enums import RepoIndexStatus
 from app.schemas.cli_api import RepoIndexResponse, RepositoryListResponse, RepoStatusResponse
 from app.schemas.durable import RepositoryCreate, RepositoryRead
 from app.services.runs import RunService
+from app.vector import CODE_CHUNKS_COLLECTION, QdrantStoreError
 
 router = APIRouter(prefix="/repos", tags=["repos"])
 
@@ -28,9 +28,14 @@ def add_repository(request: RepositoryCreate, session: SessionDependency) -> Rep
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="repository path is not a readable directory",
         )
-    repository = RunService(session).register_repository(
+    resolved_path = str(local_path.resolve())
+    service = RunService(session)
+    existing_repository = service.repositories.get_by_local_path(resolved_path)
+    if existing_repository is not None:
+        return existing_repository
+    repository = service.register_repository(
         name=request.name,
-        local_path=str(local_path.resolve()),
+        local_path=resolved_path,
         default_branch=request.default_branch,
     )
     session.commit()
@@ -52,25 +57,40 @@ def index_repository(repository_id: str, session: SessionDependency) -> RepoInde
     repository = service.repositories.get(repository_id)
     if repository is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="repository not found")
-    snapshot = RepoIndexer(
-        embedder=DeterministicEmbedder(),
-        vector_store=InMemoryVectorStore(),
-    ).index(Path(repository.local_path))
-    repo_index = RepoIndexRepository(session).create(
-        repository_id=repository.id,
-        commit_sha=snapshot.git_commit or "",
-    )
-    repo_index.status = RepoIndexStatus.READY
-    repo_index.indexed_at = datetime.now(UTC)
-    repo_index.exact_index_ready = True
-    repo_index.symbol_index_ready = True
-    repo_index.semantic_index_ready = True
-    repo_index.git_metadata_ready = True
+    repo_path = Path(repository.local_path)
+    if not repo_path.exists() or not repo_path.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="repository path is not a readable directory",
+        )
+    try:
+        vector_store = QdrantVectorStore(collection=CODE_CHUNKS_COLLECTION, repo_id=repository.id)
+        vector_store.delete_by_repo_id(repository.id)
+        snapshot = PersistentRepoIndexer(
+            session=session,
+            repository_id=repository.id,
+            repository_name=repository.name,
+            embedder=LocalModelEmbedder(),
+            vector_store=vector_store,
+            vector_collection=CODE_CHUNKS_COLLECTION,
+        ).index(repo_path)
+    except (ModelGatewayError, QdrantStoreError, RuntimeError, ValueError) as exc:
+        session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"repository indexing failed: {exc}",
+        ) from exc
+    latest = RepoIndexRepository(session).latest_for_repository(repository.id)
+    if latest is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="repository indexing did not create an index record",
+        )
     session.commit()
     return _index_response(
         repository_id=repository.id,
-        index_id=repo_index.id,
-        status=str(repo_index.status),
+        index_id=latest.id,
+        status=str(latest.status),
         commit_sha=snapshot.git_commit or "",
         indexed_files=snapshot.status.indexed_files,
         indexed_chunks=snapshot.status.indexed_chunks,

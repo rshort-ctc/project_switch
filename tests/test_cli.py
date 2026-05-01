@@ -52,6 +52,61 @@ def test_repo_index_json_output(monkeypatch) -> None:
     assert '"index_id": "idx-1"' in result.output
 
 
+def test_ask_displays_answer_degraded_warning_and_citations(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "request_json",
+        _fake_request(
+            {
+                "question": "Where is approval handled?",
+                "answer": "Approval is handled in app/api/routes/approvals.py.",
+                "used_model": False,
+                "degraded": True,
+                "degraded_reason": "model unavailable",
+                "index_id": "idx-1",
+                "retrieval_summary": {
+                    "total_bundles": 1,
+                    "lanes_used": ["semantic"],
+                    "total_estimated_tokens": 24,
+                },
+                "contexts": [
+                    {
+                        "path": "app/api/routes/approvals.py",
+                        "start_line": 10,
+                        "end_line": 30,
+                        "score": 91.0,
+                        "lanes": ["semantic"],
+                        "reasons": ["semantic vector similarity"],
+                    }
+                ],
+            }
+        ),
+    )
+
+    result = runner.invoke(app, ["ask", "repo-1", "Where is approval handled?"])
+
+    assert result.exit_code == 0
+    assert "answer:" in result.output
+    assert "degraded: model unavailable" in result.output
+    assert "lanes: semantic" in result.output
+    assert "app/api/routes/approvals.py:10-30" in result.output
+
+
+def test_ask_unindexed_repo_error_is_helpful(monkeypatch) -> None:
+    def fake_request(*_args: object, **_kwargs: object) -> dict[str, Any]:
+        raise cli.typer.BadParameter(
+            "Repository is not indexed. Run POST /repos/{repository_id}/index or "
+            "`switch repo index <repo-id>` first."
+        )
+
+    monkeypatch.setattr(cli, "request_json", fake_request)
+
+    result = runner.invoke(app, ["ask", "repo-1", "Where is approval handled?"])
+
+    assert result.exit_code != 0
+    assert "switch repo index" in result.output
+
+
 def test_task_create_calls_backend(monkeypatch) -> None:
     calls: list[tuple[str, str, dict[str, Any] | None]] = []
 
@@ -98,6 +153,41 @@ def test_task_create_calls_backend(monkeypatch) -> None:
         )
     ]
     assert "task: task-1 pending" in result.output
+
+
+def test_task_run_calls_backend(monkeypatch) -> None:
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        api_url: str,
+        json_body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        calls.append((method, path, json_body))
+        return {
+            "task_id": "task-1",
+            "agent_run_id": "run-1",
+            "status": "queued",
+            "message": "Agent workflow started.",
+            "status_url": "/tasks/task-1",
+        }
+
+    monkeypatch.setattr(cli, "request_json", fake_request)
+
+    result = runner.invoke(app, ["task", "run", "task-1", "--actor-user-id", "user-1"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        (
+            "POST",
+            "/tasks/task-1/run",
+            {"actor_user_id": "user-1"},
+        )
+    ]
+    assert "run: run-1" in result.output
+    assert "status url: /tasks/task-1" in result.output
 
 
 def test_task_diff_displays_changed_files(monkeypatch) -> None:

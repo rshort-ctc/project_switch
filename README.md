@@ -80,13 +80,14 @@ Run the current API:
 uvicorn app.main:create_app --factory --reload
 ```
 
-Run the dashboard:
+Run the local stack with both UI surfaces:
 
 ```bash
-cd dashboard
-npm install
-npm run dev
+scripts/switch start
 ```
+
+The host dashboard runs in Docker at `http://127.0.0.1:3000`. The network web
+surface also runs in Docker on `SWITCH_WEB_PORT` and defaults to `0.0.0.0:3001`.
 
 Current endpoints:
 - `GET /health`
@@ -98,8 +99,12 @@ Current endpoints:
 - `POST /repos`
 - `POST /repos/{repository_id}/index`
 - `GET /repos/{repository_id}/status`
+- `POST /ask`
+- `POST /chat`
+- `POST /chat/code/run`
 - `GET /tasks`
 - `POST /tasks`
+- `POST /tasks/{task_id}/run`
 - `GET /tasks/{task_id}`
 - `GET /tasks/{task_id}/logs`
 - `GET /tasks/{task_id}/diff`
@@ -108,6 +113,23 @@ Current endpoints:
 - `POST /approvals/{approval_request_id}/approve`
 - `POST /approvals/{approval_request_id}/deny`
 - `GET /audit`
+
+Run a task through the deterministic workflow:
+
+```bash
+switch task create <repo-id> "Fix the failing greeting test" \
+  --description "Inspect the repo, plan the change, and stop for approval." \
+  --created-by <user-id>
+switch task run <task-id>
+switch task status <task-id>
+switch task logs <task-id>
+```
+
+`POST /tasks/{task_id}/run` queues the existing deterministic workflow with
+FastAPI `BackgroundTasks`. This is an interim local runtime until the Redis
+worker phase owns durable queue execution. The workflow persists real
+`AgentStep`, `ToolCall`, `AuditEvent`, and pending `ApprovalRequest` rows; it
+does not auto-approve mutating actions.
 
 ## Durable Model
 
@@ -142,11 +164,27 @@ The local indexer combines:
 - vector storage through an in-memory test store or Qdrant adapter
 - incremental reindexing by file hash
 
+`POST /repos/{repository_id}/index` uses the local embedding model and Qdrant
+adapter for the production path. `SWITCH_EMBEDDING_MODEL` must point to a local
+embedding-capable model served by the configured local model gateway.
+
 ## Retrieval Engine
 
 The hybrid retrieval engine builds compact, auditable context bundles for coding tasks. It combines exact text, symbol, semantic vector, file path, import/export dependency, git history, and source/test-pairing lanes.
 
 Each bundle keeps file path, line range, chunk id, symbol name when available, git commit, selected lanes, score, and human-readable reasons. Retrieval deduplicates overlapping chunks and enforces a context budget so prompts receive focused context instead of whole repositories.
+
+Repo Q&A through `POST /ask`, `POST /chat`, and `switch ask` requires a ready
+persistent repo index. Run `switch repo index <repo-id>` first. Ask/chat use
+Qdrant-backed semantic retrieval filtered by repo id plus local exact search;
+they do not re-index repositories per request and do not use deterministic test
+embeddings in production routes.
+
+If a local summarizer, planner, or coder model is configured, `/ask` generates
+an answer through the local model gateway using only retrieved context. If no
+answer model is configured or the model gateway is unavailable, the response is
+explicitly marked `degraded=true` and returns context-only citations instead of
+pretending a model answered.
 
 ## Policy Engine
 
@@ -181,14 +219,18 @@ The internal tool layer exposes typed, policy-checked tools for agent use:
 
 Each tool has typed input and output schemas, runs policy checks before actions, writes a `ToolCall`, emits an `AuditEvent`, returns structured errors, and compacts large outputs for model-facing responses.
 
-## Web Dashboard
+## Dashboard Surfaces
 
-The dashboard is a dense internal operations UI for local visibility and human approval. It
-shows repository status, task state, run timelines, retrieval context, diffs, validation
+The host dashboard is a dense internal operations UI for local visibility and human approval.
+It shows repository status, task state, run timelines, retrieval context, diffs, validation
 results, pending approvals, audit events, and model/server health.
 
-The dashboard does not talk to the database directly and does not run tools or shell commands.
-It uses backend APIs for all reads and approval decisions.
+The network web surface is the limited browser surface for LAN machines. It is locked to
+chat and repository views; diagnostics, approval actions, audit logs, task views, sandbox
+console access, and metrics stay on the host dashboard.
+
+Neither surface talks to the database directly. Both use backend APIs for reads and
+allowed mutations.
 
 ## Evaluation Harness
 

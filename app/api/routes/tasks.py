@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.repositories import ValidationRunRepository
@@ -14,6 +14,8 @@ from app.schemas.cli_api import (
     TaskDiffResponse,
     TaskListResponse,
     TaskLogsResponse,
+    TaskRunRequest,
+    TaskRunResponse,
     TaskStatusResponse,
     ValidationResultsResponse,
 )
@@ -26,7 +28,9 @@ from app.schemas.durable import (
 )
 from app.security import PermissionLevel, PolicyConfig, PolicyEngine
 from app.services.audit import AuditService
+from app.services.exceptions import EntityNotFoundError
 from app.services.runs import RunService
+from app.services.workflow_runner import WorkflowRunnerService, run_workflow_background
 from app.tools import ToolRegistry
 from app.tools.schemas import ApplyPatchInput, ToolContext
 
@@ -71,9 +75,45 @@ def task_status(task_id: str, session: SessionDependency) -> TaskStatusResponse:
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="task not found")
     run = service.runs.latest_for_task(task_id)
+    summary = WorkflowRunnerService(session).status_summary(task_id)
     return TaskStatusResponse(
         task=TaskRead.model_validate(task),
         run=AgentRunRead.model_validate(run) if run is not None else None,
+        **summary,
+    )
+
+
+@router.post(
+    "/{task_id}/run",
+    response_model=TaskRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def run_task(
+    task_id: str,
+    request: TaskRunRequest,
+    background_tasks: BackgroundTasks,
+    session: SessionDependency,
+) -> TaskRunResponse:
+    try:
+        run = WorkflowRunnerService(session).prepare_run(
+            task_id=task_id,
+            actor_user_id=request.actor_user_id,
+        )
+    except EntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    session.commit()
+    background_tasks.add_task(
+        run_workflow_background,
+        task_id=task_id,
+        agent_run_id=run.id,
+        actor_user_id=request.actor_user_id,
+    )
+    return TaskRunResponse(
+        task_id=task_id,
+        agent_run_id=run.id,
+        status="queued",
+        message="Agent workflow started.",
+        status_url=f"/tasks/{task_id}",
     )
 
 

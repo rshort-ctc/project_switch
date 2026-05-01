@@ -232,6 +232,48 @@ Scope:
 - Backup/restore scripts and operator documentation.
 - Security checklist, local model guide, onboarding, and hardening validation.
 
+## Corrective Phase 17: Make Switch Move
+
+Status: implemented in the current working tree.
+
+Scope:
+- `POST /tasks/{task_id}/run` queues the existing deterministic coding workflow.
+- `app.services.workflow_runner` loads task, repository, actor, and run state;
+  builds the workflow dependencies; records queued/started/completed/failed or
+  waiting-for-approval audit events; and updates task/run status.
+- `switch task run <task-id>` calls the backend API without bypassing policy.
+- Task status reports latest workflow state, step count, tool-call count,
+  pending approvals, and latest failure message.
+- FastAPI `BackgroundTasks` is the interim executor until the Redis worker
+  runtime phase.
+
+## Corrective Phase 19: Qdrant Ask/Chat Wiring
+
+Status: implemented in the current working tree.
+
+Scope:
+- `POST /ask` and repo-aware `POST /chat` require a latest ready repo index and
+  return `409 Conflict` when indexing has not run.
+- Production repo indexing writes local embeddings to Qdrant instead of marking
+  an in-memory smoke index as ready.
+- Ask/chat use persistent Qdrant semantic retrieval filtered by repository id
+  plus local exact-search citations; they do not re-index whole repos during a
+  request.
+- `DeterministicEmbedder` and `InMemoryVectorStore` remain test/evaluation
+  utilities, not production ask/chat backends.
+- Local model answers are optional and honest: successful calls persist
+  `ModelCall` metadata, while unavailable models return explicit degraded
+  context-only responses.
+
+## Corrective Phase 20: Audit And Redaction Hardening
+
+Planned scope:
+- Tamper-evident audit chain and append-oriented audit protections.
+- Stronger redaction for validation stdout/stderr, diffs, prompts, and model
+  call summaries.
+- Secret-pattern test suite proving secrets do not land in visible DB fields.
+- Clear retention and export rules for audit, model-call, and artifact metadata.
+
 ## Phase 17: VS Code and Cursor Extension
 
 Status: implemented in the current working tree.

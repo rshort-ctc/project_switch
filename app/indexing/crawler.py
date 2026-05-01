@@ -11,14 +11,18 @@ from app.security.redaction import contains_secret
 
 VENDOR_DIRS = {
     ".git",
+    ".next",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
+    ".switch",
     ".venv",
     "__pycache__",
+    "coverage",
     "build",
     "dist",
     "node_modules",
+    "out",
     "target",
     "vendor",
 }

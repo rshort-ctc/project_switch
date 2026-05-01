@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { StatusBadge } from "@/components/status-badge";
 import { askRepo, getRepoStatus } from "@/lib/api";
+import { isHostSurface } from "@/lib/surface";
 
 type RepoDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -17,7 +18,10 @@ export default async function RepoDetailPage({ params }: RepoDetailPageProps) {
   if (status === null) {
     notFound();
   }
-  const contexts = await askRepo(id, "recent task policy validation diff approval").catch(() => []);
+  const showHostDiagnostics = isHostSurface();
+  const contexts = showHostDiagnostics
+    ? await askRepo(id, "recent task policy validation diff approval").catch(() => [])
+    : [];
 
   return (
     <>
@@ -57,23 +61,25 @@ export default async function RepoDetailPage({ params }: RepoDetailPageProps) {
           )}
         </Panel>
 
-        <Panel title="Retrieval Context Sample">
-          {contexts.length === 0 ? (
-            <EmptyState>No retrieval context available. Index the repo first.</EmptyState>
-          ) : (
-            <div className="stack">
-              {contexts.map((context) => (
-                <div className="timeline-item" key={`${context.path}-${context.start_line}`}>
-                  <div className="mono">
-                    {context.path}:{context.start_line}-{context.end_line}
+        {showHostDiagnostics ? (
+          <Panel title="Retrieval Context Sample">
+            {contexts.length === 0 ? (
+              <EmptyState>No retrieval context available. Index the repo first.</EmptyState>
+            ) : (
+              <div className="stack">
+                {contexts.map((context) => (
+                  <div className="timeline-item" key={`${context.path}-${context.start_line}`}>
+                    <div className="mono">
+                      {context.path}:{context.start_line}-{context.end_line}
+                    </div>
+                    <div>score={context.score.toFixed(2)}</div>
+                    <div className="muted">{context.reasons.join("; ")}</div>
                   </div>
-                  <div>score={context.score.toFixed(2)}</div>
-                  <div className="muted">{context.reasons.join("; ")}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
+                ))}
+              </div>
+            )}
+          </Panel>
+        ) : null}
       </div>
     </>
   );

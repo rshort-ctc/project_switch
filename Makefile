@@ -1,9 +1,9 @@
-.PHONY: install format lint typecheck test eval migrate run deploy-config backup restore dashboard-install dashboard-lint dashboard-typecheck dashboard-build dashboard-dev extension-install extension-check extension-test
+.PHONY: install format lint typecheck test eval migrate run start start-web start-desktop stop restart status logs deploy-config backup restore dashboard-install dashboard-lint dashboard-typecheck dashboard-build dashboard-dev dashboard-desktop-check dashboard-desktop-dev dashboard-desktop-build extension-install extension-check extension-test
 
 install:
 	python3.12 -m venv .venv
 	. .venv/bin/activate && pip install -e ".[dev]"
-	chmod +x scripts/install scripts/format scripts/lint scripts/typecheck scripts/test scripts/eval scripts/migrate scripts/run scripts/backup scripts/restore
+	chmod +x scripts/install scripts/format scripts/lint scripts/typecheck scripts/test scripts/eval scripts/migrate scripts/run scripts/switch scripts/backup scripts/restore
 
 format:
 	ruff format .
@@ -26,6 +26,27 @@ migrate:
 
 run:
 	uvicorn app.main:create_app --factory --reload
+
+start:
+	scripts/switch start
+
+start-web:
+	scripts/switch start --web
+
+start-desktop:
+	scripts/switch start --desktop
+
+stop:
+	scripts/switch stop
+
+restart:
+	scripts/switch restart
+
+status:
+	scripts/switch status
+
+logs:
+	scripts/switch logs
 
 deploy-config:
 	docker compose config --quiet
@@ -50,6 +71,15 @@ dashboard-build:
 
 dashboard-dev:
 	cd dashboard && npm run dev
+
+dashboard-desktop-check:
+	cd dashboard && npm run desktop:check
+
+dashboard-desktop-dev:
+	cd dashboard && npm run desktop:dev
+
+dashboard-desktop-build:
+	cd dashboard && npm run desktop:build
 
 extension-install:
 	cd extensions/vscode-switch && npm install

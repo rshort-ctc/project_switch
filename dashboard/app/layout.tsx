@@ -10,6 +10,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { dashboardSurface } from "@/lib/surface";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,7 +28,12 @@ const navItems = [
   { href: "/audit", label: "Audit", icon: ClipboardCheck },
 ];
 
+const webNavItems = navItems.filter((item) => item.href === "/chat" || item.href === "/repos");
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const surface = dashboardSurface();
+  const visibleNavItems = surface === "web" ? webNavItems : navItems;
+
   return (
     <html lang="en">
       <body>
@@ -34,10 +41,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <aside className="sidebar">
             <div className="brand">
               <div className="brand-title">SWITCH</div>
-              <div className="brand-subtitle">Local agent control plane</div>
+              <div className="brand-subtitle">
+                {surface === "web" ? "Network repo chat" : "Local agent control plane"}
+              </div>
             </div>
             <nav className="nav" aria-label="Dashboard navigation">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link href={item.href} key={item.href}>

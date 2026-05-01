@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STATE_DIR="$ROOT_DIR/.switch/run"
+DESKTOP_PID_FILE="$STATE_DIR/desktop.pid"
+DESKTOP_LOG_FILE="$STATE_DIR/desktop.log"
+DEFAULT_MODE="all"
+
+mkdir -p "$STATE_DIR"
+export SWITCH_HOST_REPO_ROOT="${SWITCH_HOST_REPO_ROOT:-$HOME/Projects}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  scripts/switch start [--all|--web|--desktop] [--model]
+  scripts/switch stop
+  scripts/switch restart [--all|--web|--desktop] [--model]
+  scripts/switch status
+  scripts/switch logs [service]
+
+Modes:
+  --all       Build/start the host dashboard, then the network web surface. This is the default.
+  --web       Build and start the Docker API, network web surface, PostgreSQL, Redis, and Qdrant stack.
+  --desktop   Build/start backend services and the host dashboard in Docker.
+  --model     Include the optional vLLM Compose profile.
+
+Examples:
+  scripts/switch start
+  scripts/switch start --web
+  scripts/switch start --desktop
+  scripts/switch stop
+  scripts/switch logs switch-api
+EOF
+}
+
+compose_cmd() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+    return
+  fi
+  if command -v podman-compose >/dev/null 2>&1; then
+    podman-compose "$@"
+    return
+  fi
+  echo "Neither 'docker compose' nor 'podman-compose' is available." >&2
+  exit 1
+}
+
+compose_with_profiles() {
+  if [[ "${WITH_MODEL:-false}" == "true" ]]; then
+    compose_cmd --profile model "$@"
+  else
+    compose_cmd "$@"
+  fi
+}
+
+ensure_dashboard_dependencies() {
+  if [[ ! -d "$ROOT_DIR/dashboard/node_modules" ]]; then
+    (cd "$ROOT_DIR/dashboard" && npm ci)
+  fi
+}
+
+desktop_is_running() {
+  [[ -f "$DESKTOP_PID_FILE" ]] || return 1
+  local pid
+  pid="$(cat "$DESKTOP_PID_FILE")"
+  [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1
+}
+
+stop_desktop() {
+  if desktop_is_running; then
+    local pid
+    pid="$(cat "$DESKTOP_PID_FILE")"
+    echo "Stopping SWITCH desktop shell (pid $pid)..."
+    kill "$pid" >/dev/null 2>&1 || true
+    for _ in {1..20}; do
+      if ! kill -0 "$pid" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.25
+    done
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -TERM "-$pid" >/dev/null 2>&1 || true
+      kill -TERM "$pid" >/dev/null 2>&1 || true
+    fi
+  fi
+  pkill -f "$ROOT_DIR/dashboard/node_modules/.bin/next dev --hostname 127.0.0.1 --port ${SWITCH_DASHBOARD_PORT:-3000}" >/dev/null 2>&1 || true
+  pkill -f "$ROOT_DIR/dashboard/src-tauri/target/debug/switch-desktop" >/dev/null 2>&1 || true
+  rm -f "$DESKTOP_PID_FILE"
+}
+
+start_web() {
+  echo "Building and starting SWITCH web stack..."
+  compose_with_profiles up -d --build switch-web
+  echo "SWITCH web surface: http://${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-3001}"
+  if [[ "${SWITCH_WEB_BIND:-0.0.0.0}" == "0.0.0.0" ]]; then
+    echo "Network machines should use http://<host-lan-ip>:${SWITCH_WEB_PORT:-3001}"
+  fi
+  echo "SWITCH API: http://127.0.0.1:${SWITCH_BACKEND_PORT:-8000}"
+}
+
+start_desktop() {
+  stop_desktop
+  echo "Building and starting SWITCH host dashboard stack..."
+  compose_with_profiles up -d --build switch-dashboard
+  echo "SWITCH host dashboard: http://127.0.0.1:${SWITCH_DASHBOARD_PORT:-3000}"
+}
+
+start_all() {
+  stop_desktop
+  start_desktop
+  start_web
+}
+
+stop_all() {
+  stop_desktop
+  echo "Stopping SWITCH Docker services..."
+  compose_cmd down
+}
+
+show_status() {
+  compose_cmd ps
+  if desktop_is_running; then
+    echo
+    echo "switch-desktop legacy dev process: running (pid $(cat "$DESKTOP_PID_FILE"))"
+    echo "legacy desktop logs: $DESKTOP_LOG_FILE"
+  else
+    echo
+    echo "switch-desktop legacy dev process: stopped"
+  fi
+}
+
+show_logs() {
+  if [[ "${1:-}" == "desktop" ]]; then
+    touch "$DESKTOP_LOG_FILE"
+    tail -f "$DESKTOP_LOG_FILE"
+    return
+  fi
+  compose_cmd logs -f "${1:-}"
+}
+
+ACTION="${1:-}"
+shift || true
+
+MODE="$DEFAULT_MODE"
+WITH_MODEL="false"
+LOG_SERVICE=""
+
+if [[ "$ACTION" == "logs" ]]; then
+  LOG_SERVICE="${1:-}"
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --web)
+      MODE="web"
+      ;;
+    --desktop)
+      MODE="desktop"
+      ;;
+    --all)
+      MODE="all"
+      ;;
+    --model)
+      WITH_MODEL="true"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+case "$ACTION" in
+  start)
+    case "$MODE" in
+      all)
+        start_all
+        ;;
+      desktop)
+        start_desktop
+        ;;
+      web)
+        start_web
+        ;;
+    esac
+    ;;
+  stop)
+    stop_all
+    ;;
+  restart)
+    stop_all
+    case "$MODE" in
+      all)
+        start_all
+        ;;
+      desktop)
+        start_desktop
+        ;;
+      web)
+        start_web
+        ;;
+    esac
+    ;;
+  status)
+    show_status
+    ;;
+  logs)
+    show_logs "$LOG_SERVICE"
+    ;;
+  -h|--help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown action: $ACTION" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

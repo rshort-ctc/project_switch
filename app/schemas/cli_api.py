@@ -18,6 +18,14 @@ class AgentModelsResponse(BaseModel):
     reranker_model: str | None
 
 
+class ModelCatalogResponse(BaseModel):
+    providers: list[str]
+    models: list[str]
+    models_by_provider: dict[str, list[str]]
+    allow_ollama_cloud_models: bool
+    local_only: bool
+
+
 class RepoIndexResponse(BaseModel):
     repository_id: str
     index_id: str
@@ -47,12 +55,24 @@ class AskContext(BaseModel):
     end_line: int
     score: float
     reasons: list[str]
+    lanes: list[str] = Field(default_factory=list)
+
+
+class RetrievalSummary(BaseModel):
+    total_bundles: int
+    lanes_used: list[str]
+    total_estimated_tokens: int
 
 
 class AskResponse(BaseModel):
     question: str
     answer: str
     contexts: list[AskContext]
+    used_model: bool = False
+    degraded: bool = False
+    degraded_reason: str | None = None
+    index_id: str | None = None
+    retrieval_summary: RetrievalSummary | None = None
 
 
 class ChatMessageInput(BaseModel):
@@ -65,6 +85,8 @@ class ChatRequest(BaseModel):
     repository_id: str | None = None
     actor_user_id: str | None = None
     model_role: str = Field(default="coder_model")
+    provider: str = Field(default="local_vllm")
+    model: str | None = Field(default=None, min_length=1)
     max_bundles: int = Field(default=6, ge=0, le=20)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1200, ge=1, le=8000)
@@ -75,6 +97,7 @@ class ChatResponse(BaseModel):
     contexts: list[AskContext]
     model: str | None = None
     model_role: str
+    provider: str = "local_vllm"
     used_model: bool
     degraded: bool
     stop_reason: str | None = None
@@ -91,6 +114,23 @@ class TaskCreateResponse(BaseModel):
 class TaskStatusResponse(BaseModel):
     task: TaskRead
     run: AgentRunRead | None = None
+    current_state: str | None = None
+    agent_step_count: int = 0
+    tool_call_count: int = 0
+    pending_approval_count: int = 0
+    latest_failure_message: str | None = None
+
+
+class TaskRunRequest(BaseModel):
+    actor_user_id: str | None = None
+
+
+class TaskRunResponse(BaseModel):
+    task_id: str
+    agent_run_id: str
+    status: str
+    message: str
+    status_url: str
 
 
 class TaskListResponse(BaseModel):

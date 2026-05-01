@@ -105,12 +105,38 @@ export type ChatResponse = {
   contexts: AskContext[];
   model: string | null;
   model_role: string;
+  provider: string;
   used_model: boolean;
   degraded: boolean;
   stop_reason: string | null;
   prompt_tokens: number | null;
   completion_tokens: number | null;
   total_tokens: number | null;
+};
+
+export type ModelCatalog = {
+  providers: string[];
+  models: string[];
+  models_by_provider: Record<string, string[]>;
+  allow_ollama_cloud_models: boolean;
+  local_only: boolean;
+};
+
+export type ChatCodeRunRequest = {
+  language: "python";
+  code: string;
+  timeout_seconds: number;
+};
+
+export type ChatCodeRunResponse = {
+  language: string;
+  exit_code: number | null;
+  stdout: string;
+  stderr: string;
+  duration_ms: number;
+  timed_out: boolean;
+  truncated: boolean;
+  network_enabled: boolean;
 };
 
 export type HealthDetails = {

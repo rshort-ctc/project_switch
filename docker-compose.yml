@@ -9,7 +9,7 @@ x-service-defaults: &service-defaults
   logging: *default-logging
 
 services:
-  backend:
+  switch-api:
     <<: *service-defaults
     build:
       context: .
@@ -20,13 +20,17 @@ services:
       SWITCH_LOCAL_ONLY: ${SWITCH_LOCAL_ONLY:-true}
       SWITCH_LOG_LEVEL: ${SWITCH_LOG_LEVEL:-INFO}
       SWITCH_LOG_JSON: ${SWITCH_LOG_JSON:-true}
-      SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@postgres:5432/switch}
-      SWITCH_REDIS_URL: ${SWITCH_REDIS_URL:-redis://redis:6379/0}
-      SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://qdrant:6333}
-      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://model-gateway:8001/v1}
+      SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@switch-db:5432/switch}
+      SWITCH_REDIS_URL: ${SWITCH_REDIS_URL:-redis://switch-redis:6379/0}
+      SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://switch-qdrant:6333}
+      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:8001/v1}
+      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:11434/v1}
+      SWITCH_ARTIFACT_ROOT: ${SWITCH_ARTIFACT_ROOT:-/srv/switch/.switch/artifacts}
+      SWITCH_WORKSPACE_ROOT: ${SWITCH_WORKSPACE_ROOT:-/workspaces}
       SWITCH_MODEL_REQUEST_TIMEOUT_SECONDS: ${SWITCH_MODEL_REQUEST_TIMEOUT_SECONDS:-30}
       SWITCH_MODEL_MAX_RETRIES: ${SWITCH_MODEL_MAX_RETRIES:-2}
       SWITCH_MODEL_RETRY_BACKOFF_SECONDS: ${SWITCH_MODEL_RETRY_BACKOFF_SECONDS:-0.2}
+      SWITCH_ALLOW_OLLAMA_CLOUD_MODELS: ${SWITCH_ALLOW_OLLAMA_CLOUD_MODELS:-false}
       SWITCH_SANDBOX_ENGINE: ${SWITCH_SANDBOX_ENGINE:-docker}
       SWITCH_SANDBOX_IMAGE: ${SWITCH_SANDBOX_IMAGE:-python:3.12-slim}
       SWITCH_SANDBOX_CPU_COUNT: ${SWITCH_SANDBOX_CPU_COUNT:-1}
@@ -37,27 +41,29 @@ services:
       SWITCH_AUDIT_RETENTION_DAYS: ${SWITCH_AUDIT_RETENTION_DAYS:-365}
       SWITCH_ADMIN_CONTACT: ${SWITCH_ADMIN_CONTACT:-local-admin@example.invalid}
       SWITCH_DEFAULT_PERMISSION_LEVEL: ${SWITCH_DEFAULT_PERMISSION_LEVEL:-1}
-      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]}
+      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","switch-api","switch-dashboard","switch-web","switch-db","switch-redis","switch-qdrant","switch-vllm","host.docker.internal"]}
       SWITCH_PLANNER_MODEL: ${SWITCH_PLANNER_MODEL:-}
       SWITCH_CODER_MODEL: ${SWITCH_CODER_MODEL:-}
       SWITCH_REVIEWER_MODEL: ${SWITCH_REVIEWER_MODEL:-}
       SWITCH_SUMMARIZER_MODEL: ${SWITCH_SUMMARIZER_MODEL:-}
       SWITCH_EMBEDDING_MODEL: ${SWITCH_EMBEDDING_MODEL:-}
       SWITCH_RERANKER_MODEL: ${SWITCH_RERANKER_MODEL:-}
+      SWITCH_ALLOWED_REPO_ROOTS: ${SWITCH_ALLOWED_REPO_ROOTS:-["/workspaces","/home/rshort/Projects"]}
     depends_on:
-      postgres:
+      switch-db:
         condition: service_healthy
-      redis:
+      switch-redis:
         condition: service_healthy
-      qdrant:
+      switch-qdrant:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
     ports:
-      - "${SWITCH_BACKEND_PORT:-8000}:8000"
+      - "${SWITCH_BACKEND_BIND:-127.0.0.1}:${SWITCH_BACKEND_PORT:-8000}:8000"
     volumes:
       - switch-artifacts:/srv/switch/.switch
       - ${SWITCH_WORKSPACE_ROOT:-./workspaces}:/workspaces:rw
+      - ${SWITCH_HOST_REPO_ROOT:-/home/rshort/Projects}:${SWITCH_HOST_REPO_ROOT:-/home/rshort/Projects}:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -82,31 +88,35 @@ services:
     environment:
       SWITCH_ENVIRONMENT: ${SWITCH_ENVIRONMENT:-production}
       SWITCH_LOCAL_ONLY: ${SWITCH_LOCAL_ONLY:-true}
-      SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@postgres:5432/switch}
-      SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://qdrant:6333}
-      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://model-gateway:8001/v1}
-      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","host.docker.internal"]}
+      SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@switch-db:5432/switch}
+      SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://switch-qdrant:6333}
+      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:8001/v1}
+      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:11434/v1}
+      SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","switch-api","switch-dashboard","switch-web","switch-db","switch-redis","switch-qdrant","switch-vllm","host.docker.internal"]}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      postgres:
+      switch-db:
         condition: service_healthy
     command: ["alembic", "upgrade", "head"]
     security_opt:
       - no-new-privileges:true
 
-  dashboard:
+  switch-web:
     <<: *service-defaults
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+      args:
+        SWITCH_DASHBOARD_SURFACE: web
     environment:
-      SWITCH_API_URL: ${SWITCH_DASHBOARD_API_URL:-http://backend:8000}
+      SWITCH_API_URL: ${SWITCH_WEB_API_URL:-http://switch-api:8000}
+      SWITCH_DASHBOARD_SURFACE: web
     depends_on:
-      backend:
+      switch-api:
         condition: service_healthy
     ports:
-      - "${SWITCH_DASHBOARD_PORT:-3000}:3000"
+      - "${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-3001}:3000"
     healthcheck:
       test:
         - CMD
@@ -120,7 +130,35 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  postgres:
+  switch-dashboard:
+    <<: *service-defaults
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      args:
+        SWITCH_DASHBOARD_SURFACE: host
+    environment:
+      SWITCH_API_URL: ${SWITCH_DASHBOARD_API_URL:-http://switch-api:8000}
+      SWITCH_DASHBOARD_SURFACE: host
+    depends_on:
+      switch-api:
+        condition: service_healthy
+    ports:
+      - "${SWITCH_DASHBOARD_BIND:-127.0.0.1}:${SWITCH_DASHBOARD_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  switch-db:
     <<: *service-defaults
     image: postgres:16.4
     environment:
@@ -128,7 +166,7 @@ services:
       POSTGRES_USER: ${SWITCH_POSTGRES_USER:-switch}
       POSTGRES_PASSWORD: ${SWITCH_POSTGRES_PASSWORD:-switch}
     ports:
-      - "${SWITCH_POSTGRES_PORT:-5432}:5432"
+      - "${SWITCH_POSTGRES_BIND:-127.0.0.1}:${SWITCH_POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -140,12 +178,12 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  redis:
+  switch-redis:
     <<: *service-defaults
     image: redis:7.2
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     ports:
-      - "${SWITCH_REDIS_PORT:-6379}:6379"
+      - "${SWITCH_REDIS_BIND:-127.0.0.1}:${SWITCH_REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -156,12 +194,12 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  qdrant:
+  switch-qdrant:
     <<: *service-defaults
     image: qdrant/qdrant:v1.11.0
     ports:
-      - "${SWITCH_QDRANT_HTTP_PORT:-6333}:6333"
-      - "${SWITCH_QDRANT_GRPC_PORT:-6334}:6334"
+      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_HTTP_PORT:-6333}:6333"
+      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_GRPC_PORT:-6334}:6334"
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
@@ -174,7 +212,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  model-gateway:
+  switch-vllm:
     <<: *service-defaults
     image: ${SWITCH_VLLM_IMAGE:-vllm/vllm-openai:latest}
     profiles: ["model"]

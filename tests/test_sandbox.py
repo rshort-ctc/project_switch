@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.sandbox import DockerSandboxRunner, SandboxLimits, SandboxRejected, SandboxRunSpec
+from app.sandbox.code_runner import CHAT_CODE_COMMAND, ChatCodeRunner, ChatCodeRunRequest
 from app.sandbox.runner import ContainerProcessResult
 from app.sandbox.types import SandboxCommandCategory
 
@@ -58,6 +59,50 @@ def test_disallowed_command_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(SandboxRejected, match="allowlist"):
         runner.run(SandboxRunSpec(command=("bash", "-lc", "echo bad"), workspace_path=workspace))
+
+
+def test_chat_code_command_is_allowed_in_sandbox(tmp_path: Path) -> None:
+    runtime = CapturingRuntime(
+        result=ContainerProcessResult(returncode=0, stdout="42\n", stderr="")
+    )
+    runner = DockerSandboxRunner(engine="docker", runtime=runtime)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "main.py").write_text("print(42)", encoding="utf-8")
+
+    result = runner.run(SandboxRunSpec(command=CHAT_CODE_COMMAND, workspace_path=workspace))
+
+    assert result.category is SandboxCommandCategory.CODE
+    assert result.stdout == "42\n"
+    assert runtime.args is not None
+    assert runtime.args[runtime.args.index("--network") + 1] == "none"
+
+
+def test_chat_code_runner_uses_isolated_workspace(tmp_path: Path) -> None:
+    runtime = CapturingRuntime(result=ContainerProcessResult(returncode=0, stdout="ok", stderr=""))
+    sandbox = DockerSandboxRunner(engine="docker", runtime=runtime)
+    runner = ChatCodeRunner(runner=sandbox, workspace_root=tmp_path)
+
+    result = runner.run(ChatCodeRunRequest(code="print('ok')", timeout_seconds=5))
+
+    assert result.exit_code == 0
+    assert result.stdout == "ok"
+    assert result.network_enabled is False
+    assert runtime.args is not None
+    assert "/workspace/main.py" in runtime.args
+    assert "SECRET_KEY" not in " ".join(runtime.args)
+
+
+def test_chat_code_runner_rejects_unavailable_workspace(tmp_path: Path) -> None:
+    blocking_file = tmp_path / "not-a-directory"
+    blocking_file.write_text("blocked", encoding="utf-8")
+    runner = ChatCodeRunner(
+        runner=DockerSandboxRunner(engine="docker", runtime=CapturingRuntime()),
+        workspace_root=blocking_file / "child",
+    )
+
+    with pytest.raises(SandboxRejected, match="workspace is unavailable"):
+        runner.run(ChatCodeRunRequest(code="print('ok')"))
 
 
 def test_timeout_kills_container(tmp_path: Path) -> None:

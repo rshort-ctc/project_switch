@@ -1,6 +1,14 @@
 import hashlib
+from pathlib import Path
 
-from app.indexing.types import ChunkType, CodeChunk, CodeSymbol, FileMetadata, SymbolKind
+from app.indexing.types import (
+    ChunkType,
+    CodeChunk,
+    CodeSymbol,
+    FileMetadata,
+    SourceKind,
+    SymbolKind,
+)
 
 
 def chunk_file(*, metadata: FileMetadata, text: str, symbols: list[CodeSymbol]) -> list[CodeChunk]:
@@ -84,4 +92,22 @@ def _make_chunk(
         end_line=end_line,
         symbol_name=symbol_name,
         git_commit=metadata.git_commit,
+        source_kind=_source_kind(metadata.relative_path, chunk_type),
     )
+
+
+def _source_kind(relative_path: str, chunk_type: ChunkType) -> SourceKind:
+    path = relative_path.lower()
+    if chunk_type is not ChunkType.MODULE:
+        return SourceKind.SYMBOL
+    if (
+        path.startswith(("tests/", "test/"))
+        or "/tests/" in path
+        or Path(path).name.startswith("test_")
+    ):
+        return SourceKind.TEST
+    if path.endswith((".md", ".mdx", ".rst", ".txt")) or path.startswith("docs/"):
+        return SourceKind.DOCS
+    if Path(path).name in {"pyproject.toml", "package.json", "docker-compose.yml"}:
+        return SourceKind.CONFIG
+    return SourceKind.CODE

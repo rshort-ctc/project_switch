@@ -76,6 +76,17 @@ The backend should move toward this structure:
 
 FastAPI exposes health, version, task/run, approval, audit, and admin endpoints. API handlers should remain thin and delegate policy-sensitive work to services.
 
+`POST /tasks/{task_id}/run` is the current product entrypoint for the
+deterministic coding workflow. The route validates task, repository, run, and
+actor state, records a queued audit event, then starts
+`DeterministicCodingAgentWorkflow` through `app.services.workflow_runner`.
+
+Until the worker/queue runtime is implemented, the API uses FastAPI
+`BackgroundTasks` as an interim executor. Durable workflow history is still
+written to PostgreSQL: agent steps, tool calls, approvals, validation metadata
+when validation runs, patch metadata when patches are generated, and audit
+events.
+
 ### Local Inference
 
 Inference is provided through a local vLLM-compatible endpoint. The platform must not assume cloud LLM credentials or hosted model APIs.
@@ -123,12 +134,22 @@ Current implementation:
 - probes for Tree-sitter availability while retaining deterministic fallbacks
 - chunks by extracted symbols plus module-level remainder
 - embeds chunks through an injected local embedder
-- stores vectors through a `VectorStore` protocol with in-memory and Qdrant implementations
+- stores production vectors in Qdrant through the local vector-store adapter
 - tracks incremental reindexing by file SHA-256
 - ranks hybrid retrieval lanes across exact text, symbols, semantic vectors, file paths, imports/exports, git history, and source/test pairing
 - returns context bundles with file path, chunk id, symbol name, git commit, and line-range citations
 - enforces deterministic context budgets before constructing agent-facing context
 - filters retrieval candidates through the indexed snapshot so ignored, binary, vendor, generated, and secret-looking files excluded by indexing are not reintroduced by exact search
+
+Production ask/chat behavior:
+- `/ask` and repo-aware `/chat` require a latest `ready` `RepoIndex` row.
+- Qdrant semantic search is filtered by `repo_id` and uses the configured local
+  embedding model for the query vector.
+- Routes do not re-index repositories per request and do not use
+  `DeterministicEmbedder` or `InMemoryVectorStore`.
+- Local model answers are generated only from bounded retrieved context. If the
+  model is missing or unavailable, responses are explicitly degraded and return
+  citations without claiming a model answer.
 
 ### Queue and Cache
 
@@ -155,7 +176,9 @@ The lifecycle remains deterministic where possible:
 
 Human approval is required before write, push, or PR-producing actions.
 
-The agent lifecycle is an architectural target for later phases. It is not implemented in Phase 1.
+The deterministic lifecycle is now reachable from the task API and CLI. The
+default policy remains conservative, so normal product use stops at a pending
+human approval before workspace mutation.
 
 ## Phase 0 Decision Lock
 

@@ -1,8 +1,12 @@
+import inspect
 import subprocess
 from pathlib import Path
 
+import pytest
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.routes import repos as repo_routes
 from app.api.routes.ask import ask_question
 from app.api.routes.chat import chat
 from app.api.routes.repos import add_repository, index_repository, repository_status
@@ -14,14 +18,20 @@ from app.api.routes.tasks import (
     task_status,
     validation_results,
 )
+from app.db.repositories import RepoIndexRepository
+from app.indexing import InMemoryVectorStore
 from app.models.enums import ApprovalStatus
 from app.schemas.cli_api import AskRequest, ChatMessageInput, ChatRequest, TaskApplyPatchRequest
 from app.schemas.durable import RepositoryCreate, TaskCreate
 from app.services.runs import RunService
+from app.vector.schemas import VectorSearchMatch
 
 
-def test_repo_registration_index_and_status(session: Session, tmp_path: Path) -> None:
+def test_repo_registration_index_and_status(
+    session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo_path = _sample_repo(tmp_path)
+    _patch_persistent_indexing(monkeypatch)
 
     repository = add_repository(
         RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
@@ -37,12 +47,58 @@ def test_repo_registration_index_and_status(session: Session, tmp_path: Path) ->
     assert status.latest_index.index_id == index.index_id
 
 
-def test_ask_returns_context_with_provenance(session: Session, tmp_path: Path) -> None:
+def test_repo_registration_is_idempotent_by_resolved_path(
+    session: Session, tmp_path: Path
+) -> None:
+    repo_path = _sample_repo(tmp_path)
+
+    first = add_repository(
+        RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
+        session,
+    )
+    second = add_repository(
+        RepositoryCreate(name="demo-copy", local_path=str(repo_path / "."), default_branch="main"),
+        session,
+    )
+
+    assert second.id == first.id
+    assert second.local_path == str(repo_path.resolve())
+
+
+def test_ask_returns_409_when_repo_has_no_ready_index(session: Session, tmp_path: Path) -> None:
     repo_path = _sample_repo(tmp_path)
     repository = add_repository(
         RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
         session,
     )
+
+    with pytest.raises(HTTPException) as exc_info:
+        ask_question(
+            AskRequest(repository_id=repository.id, question="greet function", max_bundles=3),
+            session,
+        )
+
+    assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+    assert "switch repo index" in str(exc_info.value.detail)
+
+
+def test_ask_route_does_not_construct_test_indexing_backends() -> None:
+    source = inspect.getsource(ask_question)
+
+    assert "DeterministicEmbedder" not in source
+    assert "InMemoryVectorStore" not in source
+
+
+def test_ask_returns_context_with_provenance(
+    session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_path = _sample_repo(tmp_path)
+    repository = add_repository(
+        RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
+        session,
+    )
+    _mark_ready_index(session, repository.id)
+    _patch_repo_qa_retrieval(monkeypatch, repository.id)
 
     response = ask_question(
         AskRequest(repository_id=repository.id, question="greet function", max_bundles=3),
@@ -52,16 +108,25 @@ def test_ask_returns_context_with_provenance(session: Session, tmp_path: Path) -
     assert response.question == "greet function"
     assert response.contexts
     assert response.contexts[0].path.endswith("module.py")
+    assert response.contexts[0].lanes == ["semantic"]
+    assert not response.used_model
+    assert response.degraded
+    assert response.degraded_reason in {"model not configured", "model unavailable"}
+    assert response.index_id is not None
+    assert response.retrieval_summary is not None
+    assert "semantic" in response.retrieval_summary.lanes_used
 
 
 def test_chat_returns_retrieval_fallback_when_model_unavailable(
-    session: Session, tmp_path: Path
+    session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo_path = _sample_repo(tmp_path)
     repository = add_repository(
         RepositoryCreate(name="demo", local_path=str(repo_path), default_branch="main"),
         session,
     )
+    _mark_ready_index(session, repository.id)
+    _patch_repo_qa_retrieval(monkeypatch, repository.id)
 
     response = chat(
         ChatRequest(
@@ -207,6 +272,79 @@ def _sample_repo(tmp_path: Path) -> Path:
     repo_path.mkdir()
     (repo_path / "module.py").write_text("def greet():\n    return 'hello'\n")
     return repo_path
+
+
+def _mark_ready_index(session: Session, repository_id: str) -> None:
+    repo_indexes = RepoIndexRepository(session)
+    repo_index = repo_indexes.create(repository_id=repository_id, commit_sha="abc123")
+    repo_indexes.mark_ready(
+        repo_index_id=repo_index.id,
+        indexed_file_count=1,
+        indexed_chunk_count=1,
+        vector_collection="switch_code_chunks",
+    )
+    session.commit()
+
+
+def _patch_persistent_indexing(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeEmbedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[1.0, 0.0, 0.0] for _ in texts]
+
+    class FakeVectorStore(InMemoryVectorStore):
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            super().__init__()
+
+    monkeypatch.setattr(repo_routes, "LocalModelEmbedder", FakeEmbedder)
+    monkeypatch.setattr(repo_routes, "QdrantVectorStore", FakeVectorStore)
+
+
+def _patch_repo_qa_retrieval(monkeypatch: pytest.MonkeyPatch, repository_id: str) -> None:
+    class FakeEmbedder:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2, 0.3] for _ in texts]
+
+    class FakeQdrantStore:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def semantic_search(
+            self,
+            query_vector: list[float],
+            *,
+            limit: int,
+            repo_id: str | None = None,
+            language: str | None = None,
+            file_path: str | None = None,
+            symbol_name: str | None = None,
+            chunk_type: str | None = None,
+        ) -> list[VectorSearchMatch]:
+            assert repo_id == repository_id
+            return [
+                VectorSearchMatch(
+                    id="chunk-1",
+                    score=0.91,
+                    payload={
+                        "repo_id": repository_id,
+                        "file_path": "module.py",
+                        "language": "python",
+                        "commit_sha": "abc123",
+                        "chunk_hash": "hash",
+                        "chunk_type": "function",
+                        "symbol_name": "greet",
+                        "start_line": 1,
+                        "end_line": 2,
+                        "source_kind": "code",
+                        "text_preview": "def greet(): ...",
+                    },
+                )
+            ][:limit]
+
+    monkeypatch.setattr("app.services.repo_qa.LocalModelEmbedder", FakeEmbedder)
+    monkeypatch.setattr("app.services.repo_qa.QdrantCodeChunkStore", FakeQdrantStore)
 
 
 def _git_repo(tmp_path: Path) -> Path:

@@ -2,6 +2,7 @@
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.switch/run/
 __pycache__/
 *.py[cod]
 .env
@@ -9,6 +10,8 @@ __pycache__/
 !.env.example
 dashboard/.next/
 dashboard/node_modules/
+dashboard/src-tauri/gen/
+dashboard/src-tauri/target/
 dashboard/tsconfig.tsbuildinfo
 extensions/vscode-switch/out/
 extensions/vscode-switch/node_modules/

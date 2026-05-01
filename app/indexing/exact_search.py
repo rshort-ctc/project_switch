@@ -17,12 +17,23 @@ class RipgrepSearcher:
         self.repo_path = repo_path
 
     def search(self, query: str, *, limit: int = 20) -> list[ExactSearchResult]:
-        result = subprocess.run(
-            ["rg", "--line-number", "--no-heading", "--color", "never", query, str(self.repo_path)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    "rg",
+                    "--line-number",
+                    "--no-heading",
+                    "--color",
+                    "never",
+                    query,
+                    str(self.repo_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return []
         if result.returncode not in {0, 1}:
             raise RuntimeError(result.stderr.strip() or "ripgrep search failed")
         matches: list[ExactSearchResult] = []

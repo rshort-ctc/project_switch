@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class SandboxCommandCategory(StrEnum):
+    CODE = "code"
     TESTS = "tests"
     LINT = "lint"
     TYPECHECK = "typecheck"

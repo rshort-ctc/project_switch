@@ -6,9 +6,12 @@ import type {
   AskContext,
   AuditEvent,
   ChatMessage,
+  ChatCodeRunRequest,
+  ChatCodeRunResponse,
   ChatResponse,
   HealthDetails,
   ModelGatewayHealth,
+  ModelCatalog,
   ModelRoles,
   RepoStatus,
   Repository,
@@ -124,6 +127,10 @@ export async function getModelGatewayHealth(): Promise<ModelGatewayHealth | null
   return safeGet<ModelGatewayHealth>("/model-gateway/health");
 }
 
+export async function getModelCatalog(): Promise<ModelCatalog | null> {
+  return safeGet<ModelCatalog>("/model-gateway/catalog");
+}
+
 export async function askRepo(repositoryId: string, question: string): Promise<AskContext[]> {
   const payload = await apiPost<{ contexts: AskContext[] }>("/ask", {
     repository_id: repositoryId,
@@ -137,12 +144,20 @@ export async function sendChatMessage(input: {
   repositoryId: string | null;
   messages: ChatMessage[];
   modelRole: string;
+  provider: string;
+  model: string | null;
   maxBundles: number;
 }): Promise<ChatResponse> {
   return apiPost<ChatResponse>("/chat", {
     repository_id: input.repositoryId,
     messages: input.messages,
     model_role: input.modelRole,
+    provider: input.provider,
+    model: input.model,
     max_bundles: input.maxBundles,
   });
+}
+
+export async function runChatCode(input: ChatCodeRunRequest): Promise<ChatCodeRunResponse> {
+  return apiPost<ChatCodeRunResponse>("/chat/code/run", input);
 }

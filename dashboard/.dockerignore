@@ -3,3 +3,5 @@ node_modules
 tsconfig.tsbuildinfo
 .env
 .env.*
+src-tauri/gen
+src-tauri/target
