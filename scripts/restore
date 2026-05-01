@@ -6,7 +6,7 @@ compose="${COMPOSE:-docker compose}"
 
 test -f "$backup_dir/postgres.dump"
 
-$compose exec -T postgres pg_restore \
+$compose exec -T switch-db pg_restore \
   -U "${SWITCH_POSTGRES_USER:-switch}" \
   -d "${SWITCH_POSTGRES_DB:-switch}" \
   --clean \

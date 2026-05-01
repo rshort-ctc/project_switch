@@ -166,7 +166,7 @@ services:
       POSTGRES_USER: ${SWITCH_POSTGRES_USER:-switch}
       POSTGRES_PASSWORD: ${SWITCH_POSTGRES_PASSWORD:-switch}
     ports:
-      - "${SWITCH_POSTGRES_BIND:-127.0.0.1}:${SWITCH_POSTGRES_PORT:-5432}:5432"
+      - "${SWITCH_POSTGRES_BIND:-127.0.0.1}:${SWITCH_POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./backups:/backups

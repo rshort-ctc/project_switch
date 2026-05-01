@@ -59,7 +59,7 @@ The current Compose file keeps data services and the API local-only while exposi
 - Switch API on `127.0.0.1:8000`
 - Switch host dashboard on `127.0.0.1:3000`
 - Switch network web surface on `0.0.0.0:3001`
-- PostgreSQL on `127.0.0.1:5432`
+- PostgreSQL on `127.0.0.1:55432`
 - Redis on `127.0.0.1:6379`
 - Qdrant on `127.0.0.1:6333` and `127.0.0.1:6334`
 
@@ -81,6 +81,12 @@ Service names in Compose:
 - `switch-redis`
 - `switch-qdrant`
 - optional `switch-vllm`
+
+If a previous SWITCH Compose project used the older service names, Docker may
+report orphan containers or a host port collision on `5432`. Run
+`docker compose down --remove-orphans` before starting the renamed stack, or set
+`SWITCH_POSTGRES_PORT` to an unused local port. Container-to-container database
+traffic remains `switch-db:5432`.
 
 ## Environment
 

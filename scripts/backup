@@ -6,7 +6,7 @@ output_dir="${1:-backups/$timestamp}"
 mkdir -p "$output_dir"
 
 compose="${COMPOSE:-docker compose}"
-$compose exec -T postgres pg_dump \
+$compose exec -T switch-db pg_dump \
   -U "${SWITCH_POSTGRES_USER:-switch}" \
   -d "${SWITCH_POSTGRES_DB:-switch}" \
   --format=custom \
