@@ -9,6 +9,9 @@ DEFAULT_MODE="all"
 
 mkdir -p "$STATE_DIR"
 export SWITCH_HOST_REPO_ROOT="${SWITCH_HOST_REPO_ROOT:-$HOME/Projects}"
+if [[ -z "${SWITCH_DOCKER_GID:-}" && -S /var/run/docker.sock ]]; then
+  export SWITCH_DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+fi
 
 usage() {
   cat <<'EOF'

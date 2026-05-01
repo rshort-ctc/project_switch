@@ -13,6 +13,7 @@ SettingsDependency = Annotated[Settings, Depends(get_settings)]
 @router.get("/models", response_model=AgentModelsResponse)
 def models(settings: SettingsDependency) -> AgentModelsResponse:
     return AgentModelsResponse(
+        chat_model=settings.chat_model,
         planner_model=settings.planner_model,
         coder_model=settings.coder_model,
         reviewer_model=settings.reviewer_model,

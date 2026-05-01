@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ModelRole(StrEnum):
+    CHAT = "chat_model"
     PLANNER = "planner_model"
     CODER = "coder_model"
     REVIEWER = "reviewer_model"

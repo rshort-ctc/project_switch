@@ -108,6 +108,33 @@ An approval record must bind:
 
 Approval must not rely only on a user ID supplied in a request body. Later phases must bind approval decisions to authenticated sessions, roles, and approver eligibility.
 
+Phase 1D adds an approval queue skeleton. Approval requests track:
+
+- `id`
+- `created_at`
+- `requested_by`
+- `action`
+- `action_class`
+- `target_type`
+- `target_id`
+- `proposed_payload`
+- `risk_summary`
+- `status`
+- `reviewed_by`
+- `reviewed_at`
+- `review_note`
+- `audit_event_id`
+
+Allowed approval request statuses are:
+
+- `pending`
+- `approved`
+- `rejected`
+- `cancelled`
+- `expired`
+
+The queue is a tracking surface only. Approving a request records the decision and audit trail, but it does not send messages, update tickets, alter network configuration, call provider systems, or execute any proposed payload. Later phases must add authenticated identity, role checks, and a separate execution handoff before any approved action can affect an external party or operational system.
+
 ## Audit Requirements
 
 Important actions must emit audit records. This includes data ingestion, retrieval against sensitive scopes, context compilation, draft creation, approval requests, approval decisions, attempted system-changing actions, denied actions, and administrative changes.

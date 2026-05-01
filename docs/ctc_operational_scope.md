@@ -6,7 +6,37 @@ This document defines the City Tele Coin operations domain boundary for SWITCH. 
 
 Sites and facilities represent physical operating locations, service points, or managed locations relevant to support and engineering work.
 
-Likely fields include site identifier, name, address, facility type, status, contacts, region, timezone, supported services, related tickets, active outages, installed equipment, circuits, and notes.
+Phase 2A introduces the first durable CTC domain table for site records. Site records are internal operational records only and must not be populated with real company data until identity, authorization, data classification, and retention policy are ready for the target environment.
+
+Current site fields:
+
+- `id`
+- `site_name`
+- `facility_type`
+- `address_line_1`
+- `address_line_2`
+- `city`
+- `state`
+- `zip_code`
+- `county`
+- `timezone`
+- `status`
+- `primary_contact_name`
+- `primary_contact_email`
+- `primary_contact_phone`
+- `notes`
+- `created_at`
+- `updated_at`
+
+Allowed site statuses:
+
+- `active`
+- `pending`
+- `inactive`
+- `decommissioned`
+- `unknown`
+
+Operational truth for sites should come from accepted records and approved updates, not raw retrieval alone. Site data should be scoped by role and facility authorization before it is indexed into retrieval or included in compiled context.
 
 Relationships:
 

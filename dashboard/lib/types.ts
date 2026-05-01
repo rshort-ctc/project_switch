@@ -171,6 +171,7 @@ export type HealthDetails = {
 };
 
 export type ModelRoles = {
+  chat_model: string | null;
   planner_model: string | null;
   coder_model: string | null;
   reviewer_model: string | null;

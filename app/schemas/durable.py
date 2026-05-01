@@ -133,8 +133,8 @@ class ToolCallRead(TimestampedSchema):
 class ApprovalRequestRead(TimestampedSchema):
     id: str
     task_id: str | None
-    agent_run_id: str
-    requested_by_user_id: str
+    agent_run_id: str | None
+    requested_by_user_id: str | None
     decided_by_user_id: str | None
     status: ApprovalStatus
     requested_action: str
@@ -145,6 +145,17 @@ class ApprovalRequestRead(TimestampedSchema):
     decision_note: str | None
     denial_reason: str | None
     decided_at: datetime | None
+    requested_by: str | None
+    action: str | None
+    action_class: str | None
+    target_type: str | None
+    target_id: str | None
+    proposed_payload: dict[str, object]
+    risk_summary: str | None
+    reviewed_by: str | None
+    reviewed_at: datetime | None
+    review_note: str | None
+    audit_event_id: str | None
 
 
 class ApprovalDecisionRequest(BaseModel):

@@ -38,10 +38,13 @@ services:
       SWITCH_SANDBOX_TIMEOUT_SECONDS: ${SWITCH_SANDBOX_TIMEOUT_SECONDS:-60}
       SWITCH_SANDBOX_DISK: ${SWITCH_SANDBOX_DISK:-1g}
       SWITCH_SANDBOX_NETWORK_ENABLED: ${SWITCH_SANDBOX_NETWORK_ENABLED:-false}
+      SWITCH_CHAT_CODE_ROOT: ${SWITCH_CHAT_CODE_ROOT:-/tmp/switch-chat-code}
+      SWITCH_DOCKER_GID: ${SWITCH_DOCKER_GID:-455}
       SWITCH_AUDIT_RETENTION_DAYS: ${SWITCH_AUDIT_RETENTION_DAYS:-365}
       SWITCH_ADMIN_CONTACT: ${SWITCH_ADMIN_CONTACT:-local-admin@example.invalid}
       SWITCH_DEFAULT_PERMISSION_LEVEL: ${SWITCH_DEFAULT_PERMISSION_LEVEL:-1}
       SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","switch-api","switch-dashboard","switch-web","switch-db","switch-redis","switch-qdrant","switch-vllm","host.docker.internal"]}
+      SWITCH_CHAT_MODEL: ${SWITCH_CHAT_MODEL:-}
       SWITCH_PLANNER_MODEL: ${SWITCH_PLANNER_MODEL:-}
       SWITCH_CODER_MODEL: ${SWITCH_CODER_MODEL:-}
       SWITCH_REVIEWER_MODEL: ${SWITCH_REVIEWER_MODEL:-}
@@ -60,10 +63,15 @@ services:
         condition: service_completed_successfully
     ports:
       - "${SWITCH_BACKEND_BIND:-127.0.0.1}:${SWITCH_BACKEND_PORT:-55600}:55600"
+    userns_mode: "host"
+    group_add:
+      - "${SWITCH_DOCKER_GID:-455}"
     volumes:
       - switch-artifacts:/srv/switch/.switch
       - ${SWITCH_WORKSPACE_ROOT:-./workspaces}:/workspaces:rw
       - ${SWITCH_HOST_REPO_ROOT:-/home/rshort/Projects}:${SWITCH_HOST_REPO_ROOT:-/home/rshort/Projects}:ro
+      - ${SWITCH_CHAT_CODE_ROOT:-/tmp/switch-chat-code}:${SWITCH_CHAT_CODE_ROOT:-/tmp/switch-chat-code}:rw
+      - ${SWITCH_DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

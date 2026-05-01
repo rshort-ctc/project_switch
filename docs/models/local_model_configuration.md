@@ -35,19 +35,25 @@ Only expose that listener on trusted local networks. Use host firewall rules if
 the machine is on an untrusted LAN.
 
 `SWITCH_LOCAL_ONLY=true` rejects public vLLM and Ollama endpoints. Configure
-model roles with `SWITCH_PLANNER_MODEL`, `SWITCH_CODER_MODEL`,
-`SWITCH_REVIEWER_MODEL`, `SWITCH_SUMMARIZER_MODEL`, `SWITCH_EMBEDDING_MODEL`,
-and `SWITCH_RERANKER_MODEL`.
+model roles with `SWITCH_CHAT_MODEL`, `SWITCH_PLANNER_MODEL`,
+`SWITCH_CODER_MODEL`, `SWITCH_REVIEWER_MODEL`, `SWITCH_SUMMARIZER_MODEL`,
+`SWITCH_EMBEDDING_MODEL`, and `SWITCH_RERANKER_MODEL`.
 
 For Ollama, use local model names from `ollama list`, for example:
 
 ```bash
+SWITCH_CHAT_MODEL=qwen3.6:latest
 SWITCH_CODER_MODEL=qwen2.5-coder:7b
 SWITCH_PLANNER_MODEL=qwen3.6:latest
 SWITCH_REVIEWER_MODEL=qwen3.6:latest
 SWITCH_SUMMARIZER_MODEL=llama3.1:8b
 SWITCH_EMBEDDING_MODEL=nomic-embed-text:latest
 ```
+
+`SWITCH_CHAT_MODEL` is the dashboard's default for general chat. If it is blank,
+the backend falls back to the summarizer, planner, then coder role for backward
+compatibility, but operational deployments should set it explicitly so chat
+quality can be tuned separately from coding and retrieval workflows.
 
 Do not use Ollama entries ending in `:cloud` for SWITCH operational deployments
 because those delegate inference outside the local machine.

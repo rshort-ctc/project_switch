@@ -28,6 +28,7 @@ from app.models.enums import (
     PolicyDecisionResult,
     PrivacyClass,
     RepoIndexStatus,
+    SiteStatus,
     TaskStatus,
     ToolCallStatus,
     ValidationStatus,
@@ -61,6 +62,33 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     tasks: Mapped[list["Task"]] = relationship(back_populates="created_by")
+
+
+class Site(Base, TimestampMixin):
+    __tablename__ = "sites"
+    __table_args__ = (
+        Index("ix_sites_status", "status"),
+        Index("ix_sites_city_state", "city", "state"),
+        Index("ix_sites_site_name", "site_name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    site_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    facility_type: Mapped[str] = mapped_column(String(120), default="unknown", nullable=False)
+    address_line_1: Mapped[str | None] = mapped_column(String(240))
+    address_line_2: Mapped[str | None] = mapped_column(String(240))
+    city: Mapped[str | None] = mapped_column(String(120))
+    state: Mapped[str | None] = mapped_column(String(40))
+    zip_code: Mapped[str | None] = mapped_column(String(20))
+    county: Mapped[str | None] = mapped_column(String(120))
+    timezone: Mapped[str | None] = mapped_column(String(80))
+    status: Mapped[SiteStatus] = mapped_column(
+        String(40), default=SiteStatus.UNKNOWN, nullable=False
+    )
+    primary_contact_name: Mapped[str | None] = mapped_column(String(200))
+    primary_contact_email: Mapped[str | None] = mapped_column(String(320))
+    primary_contact_phone: Mapped[str | None] = mapped_column(String(80))
+    notes: Mapped[str | None] = mapped_column(Text)
 
 
 class Repository(Base, TimestampMixin):
@@ -222,16 +250,15 @@ class ApprovalRequest(Base, TimestampMixin):
     __table_args__ = (
         Index("ix_approval_requests_task_status", "task_id", "status"),
         Index("ix_approval_requests_run_status", "agent_run_id", "status"),
+        Index("ix_approval_requests_target_status", "target_type", "target_id", "status"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     task_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tasks.id"))
-    agent_run_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False
+    agent_run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("agent_runs.id", ondelete="CASCADE")
     )
-    requested_by_user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=False
-    )
+    requested_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     decided_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     status: Mapped[ApprovalStatus] = mapped_column(
         String(40), default=ApprovalStatus.PENDING, nullable=False
@@ -246,8 +273,23 @@ class ApprovalRequest(Base, TimestampMixin):
     decision_note: Mapped[str | None] = mapped_column(Text)
     denial_reason: Mapped[str | None] = mapped_column(Text)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    requested_by: Mapped[str | None] = mapped_column(String(200))
+    action: Mapped[str | None] = mapped_column(String(120))
+    action_class: Mapped[str | None] = mapped_column(String(40))
+    target_type: Mapped[str | None] = mapped_column(String(120))
+    target_id: Mapped[str | None] = mapped_column(String(200))
+    proposed_payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    risk_summary: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[str | None] = mapped_column(String(200))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_note: Mapped[str | None] = mapped_column(Text)
+    audit_event_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("audit_events.id")
+    )
 
-    agent_run: Mapped[AgentRun] = relationship(back_populates="approvals")
+    agent_run: Mapped[AgentRun | None] = relationship(back_populates="approvals")
 
 
 class PatchArtifact(Base, TimestampMixin):

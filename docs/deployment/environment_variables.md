@@ -16,6 +16,9 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 ## Hardening Defaults
 
 - `SWITCH_SANDBOX_NETWORK_ENABLED=false`
+- `SWITCH_DOCKER_SOCKET=/var/run/docker.sock`
+- `SWITCH_DOCKER_GID`: host Docker socket group id for the API container sandbox runner.
+- `SWITCH_CHAT_CODE_ROOT=/tmp/switch-chat-code`
 - `SWITCH_SANDBOX_CPU_COUNT=1`
 - `SWITCH_SANDBOX_MEMORY=1g`
 - `SWITCH_SANDBOX_TIMEOUT_SECONDS=60`
@@ -32,6 +35,7 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 
 ## Model Roles
 
+- `SWITCH_CHAT_MODEL`
 - `SWITCH_PLANNER_MODEL`
 - `SWITCH_CODER_MODEL`
 - `SWITCH_REVIEWER_MODEL`

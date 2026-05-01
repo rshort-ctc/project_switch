@@ -594,6 +594,7 @@ pre {
   gap: 12px;
   grid-template-columns: 32px minmax(0, 1fr);
   max-width: 940px;
+  min-width: 0;
   width: 100%;
 }
 
@@ -618,6 +619,7 @@ pre {
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   min-width: 0;
+  overflow: hidden;
   padding: 13px 14px;
 }
 
@@ -641,22 +643,35 @@ pre {
 .rich-text {
   color: var(--text);
   line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .rich-text p {
   margin: 0 0 9px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .rich-text li {
   margin: 4px 0 4px 18px;
+  overflow-wrap: anywhere;
 }
 
 .rich-text pre {
   background: var(--code);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
+  max-width: 100%;
   overflow: auto;
   padding: 12px;
+  white-space: pre-wrap;
+}
+
+.rich-text code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .typing {
@@ -774,6 +789,8 @@ pre {
   display: inline-flex;
   font-size: 12px;
   gap: 5px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 5px 7px;
 }
 
@@ -949,6 +966,7 @@ pre {
   line-height: 1.45;
   max-height: 220px;
   overflow: auto;
+  overflow-wrap: anywhere;
   padding: 10px;
   white-space: pre-wrap;
 }

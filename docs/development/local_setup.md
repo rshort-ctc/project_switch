@@ -74,6 +74,22 @@ repos under `~/Projects` can be selected from the desktop directory picker. Set
 SWITCH_HOST_REPO_ROOT=/path/to/repos scripts/switch start --desktop
 ```
 
+The host dashboard terminal runs allowlisted commands through the sandbox
+runner. In Docker mode the API container needs the host Docker socket and the
+matching socket group id. Compose runs the API container with host user
+namespace mapping so the socket permissions are visible correctly. `scripts/switch`
+detects `SWITCH_DOCKER_GID` from `/var/run/docker.sock` automatically. If you
+run `docker compose` directly, set `SWITCH_DOCKER_GID` yourself when the default
+does not match:
+
+```bash
+SWITCH_DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)" docker compose up -d --build
+```
+
+The Python sandbox console uses `SWITCH_CHAT_CODE_ROOT`, mounted at the same
+absolute path on the host and API container, so the host Docker daemon can bind
+temporary code workspaces into sandbox containers.
+
 Service names in Compose:
 - `switch-api`
 - `switch-web`
@@ -113,6 +129,7 @@ Current settings include:
 - `SWITCH_MODEL_MAX_RETRIES`
 - `SWITCH_MODEL_RETRY_BACKOFF_SECONDS`
 - `SWITCH_ALLOW_OLLAMA_CLOUD_MODELS`
+- `SWITCH_CHAT_MODEL`
 - `SWITCH_PLANNER_MODEL`
 - `SWITCH_CODER_MODEL`
 - `SWITCH_REVIEWER_MODEL`
@@ -357,10 +374,11 @@ the backend returns `409 Conflict` and the CLI tells you to run:
 switch repo index <repo-id>
 ```
 
-When `SWITCH_SUMMARIZER_MODEL`, `SWITCH_PLANNER_MODEL`, or
-`SWITCH_CODER_MODEL` is configured, `/ask` asks the local model gateway to answer
-from retrieved context only. Without a configured or reachable answer model,
-responses are marked `degraded=true` and show context citations only.
+The chat dashboard uses `SWITCH_CHAT_MODEL` by default. When
+`SWITCH_SUMMARIZER_MODEL`, `SWITCH_PLANNER_MODEL`, or `SWITCH_CODER_MODEL` is
+configured, `/ask` asks the local model gateway to answer from retrieved context
+only. Without a configured or reachable answer model, responses are marked
+`degraded=true` and show context citations only.
 
 Troubleshooting:
 - Confirm Qdrant: `curl http://127.0.0.1:55633/collections`

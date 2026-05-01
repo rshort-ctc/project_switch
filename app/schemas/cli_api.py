@@ -10,6 +10,7 @@ from app.schemas.durable import (
 
 
 class AgentModelsResponse(BaseModel):
+    chat_model: str | None
     planner_model: str | None
     coder_model: str | None
     reviewer_model: str | None
@@ -84,12 +85,12 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessageInput] = Field(min_length=1)
     repository_id: str | None = None
     actor_user_id: str | None = None
-    model_role: str = Field(default="coder_model")
+    model_role: str = Field(default="chat_model")
     provider: str = Field(default="local_vllm")
     model: str | None = Field(default=None, min_length=1)
     max_bundles: int = Field(default=6, ge=0, le=20)
-    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=1200, ge=1, le=8000)
+    temperature: float = Field(default=0.1, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=450, ge=1, le=8000)
 
 
 class ChatResponse(BaseModel):

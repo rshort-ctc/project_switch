@@ -69,7 +69,7 @@ class ChatCodeRunner:
     ) -> None:
         self.settings = settings or get_settings()
         self.runner = runner or DockerSandboxRunner(engine=self.settings.sandbox_engine)
-        self.workspace_root = workspace_root or Path(tempfile.gettempdir()) / "switch-chat-code"
+        self.workspace_root = workspace_root or Path(self.settings.chat_code_root)
 
     def run(self, request: ChatCodeRunRequest) -> ChatCodeRunResponse:
         try:
@@ -80,7 +80,10 @@ class ChatCodeRunner:
             ) from exc
         with tempfile.TemporaryDirectory(dir=self.workspace_root, prefix="run-") as workspace:
             workspace_path = Path(workspace)
-            (workspace_path / "main.py").write_text(request.code, encoding="utf-8")
+            workspace_path.chmod(0o755)
+            code_path = workspace_path / "main.py"
+            code_path.write_text(request.code, encoding="utf-8")
+            code_path.chmod(0o644)
             result = self.runner.run(
                 SandboxRunSpec(
                     command=CHAT_CODE_COMMAND,

@@ -57,10 +57,12 @@ class Settings(BaseSettings):
     sandbox_timeout_seconds: int = 60
     sandbox_disk: str = "1g"
     sandbox_network_enabled: bool = False
+    chat_code_root: str = "/tmp/switch-chat-code"
     audit_retention_days: int = 365
     admin_contact: str = "local-admin@example.invalid"
     default_permission_level: int = 1
 
+    chat_model: str | None = None
     planner_model: str | None = None
     coder_model: str | None = None
     reviewer_model: str | None = None

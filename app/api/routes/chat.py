@@ -1,4 +1,6 @@
 import json
+import re
+from collections import Counter
 from pathlib import Path
 from typing import Annotated
 
@@ -39,7 +41,17 @@ SessionDependency = Annotated[Session, Depends(get_db_session)]
 SYSTEM_PROMPT = """You are SWITCH, an internal operations intelligence assistant.
 You must preserve local-only operation, cite retrieved sources when relevant, avoid claiming
 validation ran unless it is present in context, draft or propose rather than act, and treat
-approval/policy boundaries as mandatory."""
+approval/policy boundaries as mandatory.
+Respond in concise plain English. If asked about system status, answer directly and separate
+confirmed facts from unknowns."""
+
+OUTPUT_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]+")
+MIN_DEGENERATION_TOKEN_COUNT = 40
+MAX_REPEATED_TOKEN_RATIO = 0.25
+MIN_LOW_DIVERSITY_TOKEN_COUNT = 60
+MAX_LOW_DIVERSITY_UNIQUE_RATIO = 0.18
+MIN_REPEATED_NGRAM_COUNT = 8
+MAX_REPEATED_NGRAM_RATIO = 0.18
 
 
 @router.post("", response_model=ChatResponse)
@@ -162,6 +174,30 @@ def chat(request: ChatRequest, session: SessionDependency) -> ChatResponse:
             used_model=False,
             degraded=True,
             stop_reason="model unavailable",
+        )
+
+    if _is_degenerate_model_output(completion.content):
+        answer = _degenerate_output_answer(model=completion.model)
+        AuditService(session).record(
+            event_type="chat.completed",
+            summary=f"chat blocked low-quality model output model={completion.model}",
+            subject_type="chat",
+            subject_id=request.repository_id,
+            actor_user_id=request.actor_user_id,
+        )
+        session.commit()
+        return ChatResponse(
+            answer=answer,
+            contexts=contexts,
+            model=completion.model,
+            model_role=request.model_role,
+            provider=provider.value,
+            used_model=False,
+            degraded=True,
+            stop_reason="model output failed quality gate",
+            prompt_tokens=completion.prompt_tokens,
+            completion_tokens=completion.completion_tokens,
+            total_tokens=completion.total_tokens,
         )
 
     AuditService(session).record(
@@ -321,6 +357,52 @@ def _fallback_answer(*, user_message: str) -> str:
         "Start the local vLLM-compatible model gateway or select an indexed registered repo "
         f"to use retrieval.\n\nQuestion: {user_message}"
     )
+
+
+def _degenerate_output_answer(*, model: str) -> str:
+    return (
+        f"The selected local model returned repetitive or malformed output, so SWITCH blocked "
+        f"that response instead of showing it as valid. Model: {model}. The application may be "
+        "running, but this model is not currently producing reliable chat answers. Try a "
+        "different local model, reduce the prompt/context size, or restart and reload the model."
+    )
+
+
+def _is_degenerate_model_output(content: str) -> bool:
+    stripped = content.strip()
+    if not stripped:
+        return True
+
+    tokens = OUTPUT_TOKEN_RE.findall(stripped.lower())
+    if len(tokens) < MIN_DEGENERATION_TOKEN_COUNT:
+        return False
+
+    token_counts = Counter(tokens)
+    most_common_count = token_counts.most_common(1)[0][1]
+    if most_common_count / len(tokens) >= MAX_REPEATED_TOKEN_RATIO:
+        return True
+
+    if (
+        len(tokens) >= MIN_LOW_DIVERSITY_TOKEN_COUNT
+        and len(token_counts) / len(tokens) <= MAX_LOW_DIVERSITY_UNIQUE_RATIO
+    ):
+        return True
+
+    for size in (2, 3, 4):
+        if len(tokens) < size * MIN_REPEATED_NGRAM_COUNT:
+            continue
+        ngrams = [
+            " ".join(tokens[index : index + size])
+            for index in range(0, len(tokens) - size + 1)
+        ]
+        most_common_ngram_count = Counter(ngrams).most_common(1)[0][1]
+        if most_common_ngram_count >= max(
+            MIN_REPEATED_NGRAM_COUNT,
+            int(len(ngrams) * MAX_REPEATED_NGRAM_RATIO),
+        ):
+            return True
+
+    return False
 
 
 def _validate_model_selection(provider: str, model: str | None) -> ModelProvider:

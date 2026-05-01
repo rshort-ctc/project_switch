@@ -12,6 +12,7 @@ from app.db.repositories import (
 )
 from app.models.entities import AgentRun, AgentStep, ApprovalRequest, Repository, Task, User
 from app.models.enums import AgentRunStatus, AgentStepStatus, ApprovalStatus, TaskStatus
+from app.security.action_policy import ActionClass
 from app.services.audit import AuditService
 from app.services.exceptions import EntityNotFoundError, InvalidStatusTransitionError
 
@@ -177,6 +178,17 @@ class RunService:
             risk_level=risk_level,
             diff_summary=diff_summary,
             command=command,
+            requested_by=requested_by_user_id,
+            action=requested_action,
+            action_class=ActionClass.REQUIRES_APPROVAL.value,
+            target_type="agent_run",
+            target_id=agent_run_id,
+            proposed_payload={
+                "risk_level": risk_level,
+                "diff_summary": diff_summary,
+                "command": command,
+            },
+            risk_summary=reason,
         )
         current = AgentRunStatus(run.status)
         if current is AgentRunStatus.PENDING:
@@ -184,7 +196,7 @@ class RunService:
             current = AgentRunStatus.RUNNING
         if current is AgentRunStatus.RUNNING:
             self.transition_run(agent_run_id=agent_run_id, status=AgentRunStatus.WAITING_APPROVAL)
-        self.audit.record(
+        audit_event = self.audit.record(
             event_type="approval.requested",
             summary=f"approval requested: {requested_action} risk={risk_level}: {reason}",
             subject_type="approval_request",
@@ -192,6 +204,8 @@ class RunService:
             actor_user_id=requested_by_user_id,
             agent_run_id=agent_run_id,
         )
+        approval.audit_event_id = audit_event.id
+        self.session.flush()
         return approval
 
     def decide_approval(
@@ -213,17 +227,20 @@ class RunService:
         approval.status = status
         approval.decided_by_user_id = decided_by_user_id
         approval.decision_note = decision_note
+        approval.reviewed_by = decided_by_user_id
+        approval.review_note = decision_note
         if status is ApprovalStatus.REJECTED:
             approval.denial_reason = decision_note
         approval.decided_at = datetime.now(UTC)
-        run = self.runs.get(approval.agent_run_id)
+        approval.reviewed_at = approval.decided_at
+        run = self.runs.get(approval.agent_run_id) if approval.agent_run_id else None
         if run is not None and AgentRunStatus(run.status) is AgentRunStatus.WAITING_APPROVAL:
             next_status = (
                 AgentRunStatus.RUNNING
                 if status is ApprovalStatus.APPROVED
                 else AgentRunStatus.FAILED
             )
-            self.transition_run(agent_run_id=approval.agent_run_id, status=next_status)
+            self.transition_run(agent_run_id=run.id, status=next_status)
         self.audit.record(
             event_type="approval.decided",
             summary=f"approval decided: {status}",

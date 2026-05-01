@@ -40,6 +40,15 @@ class ApprovalStatus(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
     CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class SiteStatus(StrEnum):
+    ACTIVE = "active"
+    PENDING = "pending"
+    INACTIVE = "inactive"
+    DECOMMISSIONED = "decommissioned"
+    UNKNOWN = "unknown"
 
 
 class PatchStatus(StrEnum):

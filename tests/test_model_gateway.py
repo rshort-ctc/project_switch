@@ -31,6 +31,7 @@ RETRY_ATTEMPTS = 2
 
 def make_settings(**overrides: object) -> Settings:
     defaults: dict[str, object] = {
+        "chat_model": "local-chat",
         "planner_model": "local-planner",
         "coder_model": "local-coder",
         "reviewer_model": "local-reviewer",
@@ -56,6 +57,18 @@ def test_model_registry_requires_configured_role() -> None:
 
     with pytest.raises(ModelNotConfiguredError, match="planner_model"):
         registry.model_for(ModelRole.PLANNER)
+
+
+def test_model_registry_uses_configured_chat_model() -> None:
+    registry = ModelRegistry(make_settings(chat_model="local-chat-primary"))
+
+    assert registry.model_for(ModelRole.CHAT) == "local-chat-primary"
+
+
+def test_model_registry_falls_back_for_chat_model() -> None:
+    registry = ModelRegistry(make_settings(chat_model=None, summarizer_model="local-summary"))
+
+    assert registry.model_for(ModelRole.CHAT) == "local-summary"
 
 
 def test_local_only_rejects_remote_model_endpoint() -> None:

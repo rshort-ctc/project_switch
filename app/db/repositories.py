@@ -14,12 +14,13 @@ from app.models.entities import (
     PolicyDecision,
     RepoIndex,
     Repository,
+    Site,
     Task,
     ToolCall,
     User,
     ValidationRun,
 )
-from app.models.enums import RepoIndexStatus, ValidationStatus
+from app.models.enums import ApprovalStatus, RepoIndexStatus, SiteStatus, ValidationStatus
 
 
 class BaseRepository:
@@ -39,6 +40,56 @@ class UserRepository(BaseRepository):
 
     def get(self, user_id: str) -> User | None:
         return self.session.get(User, user_id)
+
+
+class SiteRepository(BaseRepository):
+    def create(
+        self,
+        *,
+        site_name: str,
+        facility_type: str = "unknown",
+        address_line_1: str | None = None,
+        address_line_2: str | None = None,
+        city: str | None = None,
+        state: str | None = None,
+        zip_code: str | None = None,
+        county: str | None = None,
+        timezone: str | None = None,
+        status: SiteStatus = SiteStatus.UNKNOWN,
+        primary_contact_name: str | None = None,
+        primary_contact_email: str | None = None,
+        primary_contact_phone: str | None = None,
+        notes: str | None = None,
+    ) -> Site:
+        site = Site(
+            site_name=site_name,
+            facility_type=facility_type,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            county=county,
+            timezone=timezone,
+            status=status,
+            primary_contact_name=primary_contact_name,
+            primary_contact_email=primary_contact_email,
+            primary_contact_phone=primary_contact_phone,
+            notes=notes,
+        )
+        self.add(site)
+        self.session.flush()
+        return site
+
+    def get(self, site_id: str) -> Site | None:
+        return self.session.get(Site, site_id)
+
+    def list(self, *, status: SiteStatus | None = None) -> Sequence[Site]:
+        statement: Select[tuple[Site]] = select(Site)
+        if status is not None:
+            statement = statement.where(Site.status == status.value)
+        statement = statement.order_by(Site.site_name, Site.id)
+        return self.session.execute(statement).scalars().all()
 
 
 class RepositoryRepository(BaseRepository):
@@ -208,14 +259,22 @@ class ApprovalRequestRepository(BaseRepository):
     def create(
         self,
         *,
-        agent_run_id: str,
-        requested_by_user_id: str,
+        agent_run_id: str | None,
+        requested_by_user_id: str | None,
         reason: str,
         task_id: str | None = None,
         requested_action: str = "unspecified",
         risk_level: str = "medium",
         diff_summary: str | None = None,
         command: str | None = None,
+        requested_by: str | None = None,
+        action: str | None = None,
+        action_class: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        proposed_payload: dict[str, object] | None = None,
+        risk_summary: str | None = None,
+        audit_event_id: str | None = None,
     ) -> ApprovalRequest:
         approval = ApprovalRequest(
             task_id=task_id,
@@ -226,6 +285,14 @@ class ApprovalRequestRepository(BaseRepository):
             risk_level=risk_level,
             diff_summary=diff_summary,
             command=command,
+            requested_by=requested_by or requested_by_user_id,
+            action=action or requested_action,
+            action_class=action_class,
+            target_type=target_type or ("agent_run" if agent_run_id else None),
+            target_id=target_id or agent_run_id,
+            proposed_payload=proposed_payload or {},
+            risk_summary=risk_summary or reason,
+            audit_event_id=audit_event_id,
         )
         self.add(approval)
         self.session.flush()
@@ -238,6 +305,32 @@ class ApprovalRequestRepository(BaseRepository):
         statement: Select[tuple[ApprovalRequest]] = (
             select(ApprovalRequest)
             .where(ApprovalRequest.status == "pending")
+            .order_by(ApprovalRequest.created_at, ApprovalRequest.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list(self) -> Sequence[ApprovalRequest]:
+        statement: Select[tuple[ApprovalRequest]] = select(ApprovalRequest).order_by(
+            ApprovalRequest.created_at,
+            ApprovalRequest.id,
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list_by_status(self, status: ApprovalStatus) -> Sequence[ApprovalRequest]:
+        statement: Select[tuple[ApprovalRequest]] = (
+            select(ApprovalRequest)
+            .where(ApprovalRequest.status == status.value)
+            .order_by(ApprovalRequest.created_at, ApprovalRequest.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list_for_target(self, target_type: str, target_id: str) -> Sequence[ApprovalRequest]:
+        statement: Select[tuple[ApprovalRequest]] = (
+            select(ApprovalRequest)
+            .where(
+                ApprovalRequest.target_type == target_type,
+                ApprovalRequest.target_id == target_id,
+            )
             .order_by(ApprovalRequest.created_at, ApprovalRequest.id)
         )
         return self.session.execute(statement).scalars().all()

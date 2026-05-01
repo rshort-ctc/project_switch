@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv/switch
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep ca-certificates \
+    && apt-get install -y --no-install-recommends git ripgrep ca-certificates docker-cli \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system switch \
     && adduser --system --ingroup switch switch
@@ -15,10 +15,12 @@ COPY pyproject.toml README.md ./
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+COPY docker/entrypoint.sh /usr/local/bin/switch-entrypoint
 
 RUN pip install --no-cache-dir .
+RUN chmod 0755 /usr/local/bin/switch-entrypoint
 
-USER switch
+ENTRYPOINT ["switch-entrypoint"]
 
 EXPOSE 55600
 

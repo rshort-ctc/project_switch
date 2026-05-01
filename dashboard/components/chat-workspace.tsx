@@ -96,7 +96,7 @@ export function ChatWorkspace({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string>("");
   const [draft, setDraft] = useState("");
-  const [modelRole, setModelRole] = useState("coder_model");
+  const [modelRole, setModelRole] = useState("chat_model");
   const [provider, setProvider] = useState("local_vllm");
   const [model, setModel] = useState("");
   const [maxBundles, setMaxBundles] = useState(6);
@@ -351,7 +351,7 @@ export function ChatWorkspace({
                 onChange={(event) => setModelRole(event.target.value)}
                 value={modelRole}
               >
-                {Object.keys(modelRoles ?? { coder_model: null }).map((role) => (
+                {Object.keys(modelRoles ?? { chat_model: null }).map((role) => (
                   <option key={role} value={role}>
                     {role}
                   </option>
