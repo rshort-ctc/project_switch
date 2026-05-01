@@ -185,13 +185,18 @@ class ValidationRunRead(TimestampedSchema):
 
 class AuditEventRead(TimestampedSchema):
     id: str
+    actor: str | None
     actor_user_id: str | None
     agent_run_id: str | None
     event_type: str
+    action_class: str | None
     summary: str
     subject_type: str
     subject_id: str | None
+    metadata_json: dict[str, object]
+    status: str | None
     trace_id: str | None
+    correlation_id: str | None
 
 
 class PolicyDecisionRead(TimestampedSchema):

@@ -112,7 +112,33 @@ Approval must not rely only on a user ID supplied in a request body. Later phase
 
 Important actions must emit audit records. This includes data ingestion, retrieval against sensitive scopes, context compilation, draft creation, approval requests, approval decisions, attempted system-changing actions, denied actions, and administrative changes.
 
-Current audit records are application database rows. Future production hardening should add retention policy, export/review workflow, correlation IDs, and tamper-evidence.
+Phase 1C defines a database-backed audit log interface for important SWITCH actions. Audit events include:
+
+- `id`
+- `timestamp`
+- `actor`
+- `action`
+- `action_class`
+- `target_type`
+- `target_id`
+- `summary`
+- `metadata`
+- `status`
+- `correlation_id`
+
+Allowed audit statuses are:
+
+- `proposed`
+- `drafted`
+- `approved`
+- `rejected`
+- `executed`
+- `failed`
+- `blocked`
+
+Audit metadata must not store secrets. The audit service redacts known secret-looking metadata keys and secret-looking summary text before persistence. This phase establishes the interface and query paths; it does not wire every workflow or create fake execution records.
+
+Current audit records are application database rows. Future production hardening should add retention policy, export/review workflow, tamper-evidence, and authenticated actor binding for all high-impact actions.
 
 ## Data Export Boundaries
 

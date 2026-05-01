@@ -19,6 +19,7 @@ from app.models.enums import (
     AgentRunStatus,
     AgentStepStatus,
     ApprovalStatus,
+    AuditStatus,
     AuthorityLevel,
     ClaimStatus,
     ClaimType,
@@ -324,15 +325,20 @@ class AuditEvent(Base, TimestampMixin):
     __table_args__ = (Index("ix_audit_events_subject", "subject_type", "subject_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    actor: Mapped[str | None] = mapped_column(String(200))
     actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     agent_run_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True
     )
     event_type: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    action_class: Mapped[str | None] = mapped_column(String(40))
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     subject_type: Mapped[str] = mapped_column(String(120), nullable=False)
     subject_id: Mapped[str | None] = mapped_column(String(36))
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[str | None] = mapped_column(String(40), default=AuditStatus.EXECUTED.value)
     trace_id: Mapped[str | None] = mapped_column(String(64))
+    correlation_id: Mapped[str | None] = mapped_column(String(64), index=True)
 
 
 class PolicyDecision(Base, TimestampMixin):

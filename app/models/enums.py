@@ -70,6 +70,16 @@ class PolicyDecisionResult(StrEnum):
     REQUIRES_APPROVAL = "requires_approval"
 
 
+class AuditStatus(StrEnum):
+    PROPOSED = "proposed"
+    DRAFTED = "drafted"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
 class PrivacyClass(StrEnum):
     PUBLIC = "public"
     INTERNAL = "internal"

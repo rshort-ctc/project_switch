@@ -307,18 +307,28 @@ class AuditEventRepository(BaseRepository):
         summary: str,
         subject_type: str,
         subject_id: str | None,
+        actor: str | None = None,
+        action_class: str | None = None,
+        metadata_json: dict[str, object] | None = None,
+        status: str | None = None,
+        correlation_id: str | None = None,
         actor_user_id: str | None = None,
         agent_run_id: str | None = None,
         trace_id: str | None = None,
     ) -> AuditEvent:
         event = AuditEvent(
+            actor=actor,
             actor_user_id=actor_user_id,
             agent_run_id=agent_run_id,
             event_type=event_type,
+            action_class=action_class,
             summary=summary,
             subject_type=subject_type,
             subject_id=subject_id,
+            metadata_json=metadata_json or {},
+            status=status,
             trace_id=trace_id,
+            correlation_id=correlation_id,
         )
         self.add(event)
         self.session.flush()
@@ -337,6 +347,22 @@ class AuditEventRepository(BaseRepository):
             select(AuditEvent)
             .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
             .limit(limit)
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list_by_correlation_id(self, correlation_id: str) -> Sequence[AuditEvent]:
+        statement: Select[tuple[AuditEvent]] = (
+            select(AuditEvent)
+            .where(AuditEvent.correlation_id == correlation_id)
+            .order_by(AuditEvent.created_at, AuditEvent.id)
+        )
+        return self.session.execute(statement).scalars().all()
+
+    def list_for_target(self, target_type: str, target_id: str | None) -> Sequence[AuditEvent]:
+        statement: Select[tuple[AuditEvent]] = (
+            select(AuditEvent)
+            .where(AuditEvent.subject_type == target_type, AuditEvent.subject_id == target_id)
+            .order_by(AuditEvent.created_at, AuditEvent.id)
         )
         return self.session.execute(statement).scalars().all()
 
