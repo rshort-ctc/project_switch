@@ -86,7 +86,11 @@ class RepoIndexer:
     def search_exact(
         self, repo_path: Path, query: str, *, limit: int = 20
     ) -> list[ExactSearchResult]:
-        return RipgrepSearcher(repo_path.resolve()).search(query, limit=limit)
+        resolved_repo_path = repo_path.resolve()
+        results = RipgrepSearcher(resolved_repo_path).search(query, limit=limit)
+        if results or limit <= 0:
+            return results
+        return self._search_indexed_files_exact(resolved_repo_path, query, limit=limit)
 
     def search_symbols(self, query: str) -> list[CodeSymbol]:
         snapshot = self._require_snapshot()
@@ -118,6 +122,35 @@ class RepoIndexer:
         if self._snapshot is None:
             raise RuntimeError("repository has not been indexed")
         return self._snapshot
+
+    def _search_indexed_files_exact(
+        self, repo_path: Path, query: str, *, limit: int
+    ) -> list[ExactSearchResult]:
+        snapshot = self._snapshot
+        if snapshot is None or snapshot.repo_path != repo_path:
+            return []
+
+        matches: list[ExactSearchResult] = []
+        for indexed_file in snapshot.files:
+            try:
+                lines = indexed_file.metadata.path.read_text(
+                    encoding="utf-8", errors="ignore"
+                ).splitlines()
+            except OSError:
+                continue
+            for line_number, line in enumerate(lines, start=1):
+                if query not in line:
+                    continue
+                matches.append(
+                    ExactSearchResult(
+                        file_path=indexed_file.metadata.relative_path,
+                        line_number=line_number,
+                        line=line,
+                    )
+                )
+                if len(matches) >= limit:
+                    return matches
+        return matches
 
 
 class PersistentRepoIndexer:

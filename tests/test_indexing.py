@@ -151,6 +151,18 @@ def test_exact_search_degrades_when_ripgrep_is_unavailable(tmp_path: Path) -> No
         assert RipgrepSearcher(repo).search("authenticate_user") == []
 
 
+def test_indexer_exact_search_falls_back_to_indexed_files_without_ripgrep(tmp_path: Path) -> None:
+    repo = create_test_repo(tmp_path)
+    indexer = RepoIndexer(embedder=KeywordEmbedder(), vector_store=InMemoryVectorStore())
+    indexer.index(repo)
+
+    with patch("app.indexing.exact_search.subprocess.run", side_effect=FileNotFoundError):
+        exact = indexer.search_exact(repo, "authenticate_user")
+
+    assert exact[0].file_path == "app.py"
+    assert exact[0].line_number > 0
+
+
 def test_persistent_indexer_records_status_in_postgresql(tmp_path: Path, session) -> None:
     repo = create_test_repo(tmp_path)
     run_service = RunService(session)
