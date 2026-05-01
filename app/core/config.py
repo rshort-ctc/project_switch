@@ -30,11 +30,11 @@ class Settings(BaseSettings):
     redoc_url: str | None = "/redoc"
     openapi_url: str | None = "/openapi.json"
 
-    database_url: str = "postgresql+psycopg://switch:switch@localhost:5432/switch"
-    redis_url: str = "redis://localhost:6379/0"
-    vector_store_url: AnyHttpUrl = "http://localhost:6333"  # type: ignore[assignment]
-    vllm_endpoint: AnyHttpUrl = "http://localhost:8001/v1"  # type: ignore[assignment]
-    ollama_endpoint: AnyHttpUrl = "http://localhost:11434/v1"  # type: ignore[assignment]
+    database_url: str = "postgresql+psycopg://switch:switch@localhost:55632/switch"
+    redis_url: str = "redis://localhost:55637/0"
+    vector_store_url: AnyHttpUrl = "http://localhost:55633"  # type: ignore[assignment]
+    vllm_endpoint: AnyHttpUrl = "http://localhost:55680/v1"  # type: ignore[assignment]
+    ollama_endpoint: AnyHttpUrl = "http://localhost:55681/v1"  # type: ignore[assignment]
     artifact_root: str = ".switch/artifacts"
     workspace_root: str = "./workspaces"
     courthouse_enabled: bool = True

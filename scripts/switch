@@ -85,7 +85,7 @@ stop_desktop() {
       kill -TERM "$pid" >/dev/null 2>&1 || true
     fi
   fi
-  pkill -f "$ROOT_DIR/dashboard/node_modules/.bin/next dev --hostname 127.0.0.1 --port ${SWITCH_DASHBOARD_PORT:-3000}" >/dev/null 2>&1 || true
+  pkill -f "$ROOT_DIR/dashboard/node_modules/.bin/next dev --hostname 127.0.0.1 --port ${SWITCH_DASHBOARD_PORT:-55601}" >/dev/null 2>&1 || true
   pkill -f "$ROOT_DIR/dashboard/src-tauri/target/debug/switch-desktop" >/dev/null 2>&1 || true
   rm -f "$DESKTOP_PID_FILE"
 }
@@ -93,18 +93,18 @@ stop_desktop() {
 start_web() {
   echo "Building and starting SWITCH web stack..."
   compose_with_profiles up -d --build switch-web
-  echo "SWITCH web surface: http://${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-3001}"
+  echo "SWITCH web surface: http://${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-55602}"
   if [[ "${SWITCH_WEB_BIND:-0.0.0.0}" == "0.0.0.0" ]]; then
-    echo "Network machines should use http://<host-lan-ip>:${SWITCH_WEB_PORT:-3001}"
+    echo "Network machines should use http://<host-lan-ip>:${SWITCH_WEB_PORT:-55602}"
   fi
-  echo "SWITCH API: http://127.0.0.1:${SWITCH_BACKEND_PORT:-8000}"
+  echo "SWITCH API: http://127.0.0.1:${SWITCH_BACKEND_PORT:-55600}"
 }
 
 start_desktop() {
   stop_desktop
   echo "Building and starting SWITCH host dashboard stack..."
   compose_with_profiles up -d --build switch-dashboard
-  echo "SWITCH host dashboard: http://127.0.0.1:${SWITCH_DASHBOARD_PORT:-3000}"
+  echo "SWITCH host dashboard: http://127.0.0.1:${SWITCH_DASHBOARD_PORT:-55601}"
 }
 
 start_all() {

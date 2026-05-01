@@ -26,7 +26,7 @@ After restore:
 
 ```bash
 docker compose restart backend dashboard
-curl http://127.0.0.1:8000/health/details
+curl http://127.0.0.1:55600/health/details
 switch repo list
 scripts/eval
 ```

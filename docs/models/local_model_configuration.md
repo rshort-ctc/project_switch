@@ -3,29 +3,29 @@
 SWITCH expects a local vLLM OpenAI-compatible endpoint. The default is:
 
 ```bash
-SWITCH_VLLM_ENDPOINT=http://localhost:8001/v1
+SWITCH_VLLM_ENDPOINT=http://localhost:55680/v1
 ```
 
 In Compose, the backend uses:
 
 ```bash
-SWITCH_VLLM_ENDPOINT=http://model-gateway:8001/v1
+SWITCH_VLLM_ENDPOINT=http://switch-vllm:55680/v1
 ```
 
 If you already run Ollama on the host, use its OpenAI-compatible endpoint from
 Compose:
 
 ```bash
-SWITCH_OLLAMA_ENDPOINT=http://host.docker.internal:11434/v1
+SWITCH_OLLAMA_ENDPOINT=http://host.docker.internal:55681/v1
 ```
 
 The Ollama service must listen on an address reachable from Docker containers.
-If `ss -ltnp | grep 11434` shows `127.0.0.1:11434`, containers cannot reach it.
+If `ss -ltnp | grep 55681` shows `127.0.0.1:55681`, containers cannot reach it.
 For a systemd-managed Ollama install, add a drop-in:
 
 ```bash
 sudo mkdir -p /etc/systemd/system/ollama.service.d
-printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0:11434"\n' \
+printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0:55681"\n' \
   | sudo tee /etc/systemd/system/ollama.service.d/10-listen.conf
 sudo systemctl daemon-reload
 sudo systemctl restart ollama

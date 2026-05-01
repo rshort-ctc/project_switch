@@ -19,7 +19,7 @@ import type {
   ValidationRun,
 } from "./types";
 
-const DEFAULT_API_URL = "http://127.0.0.1:8000";
+const DEFAULT_API_URL = "http://127.0.0.1:55600";
 const ERROR_STATUS = 400;
 
 export class ApiError extends Error {

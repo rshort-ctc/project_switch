@@ -18,8 +18,8 @@ cp .env.example .env
 mkdir -p workspaces models backups
 scripts/switch start
 docker compose ps
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/health/details
+curl http://127.0.0.1:55600/health
+curl http://127.0.0.1:55600/health/details
 ```
 
 The model container is optional because local GPU/runtime requirements vary:
@@ -34,8 +34,8 @@ approved LAN endpoint.
 ## Service Separation
 
 - `switch-api`: FastAPI API, policy, audit, repository state, model gateway client
-- `switch-dashboard`: host-only Next.js dashboard on `127.0.0.1:3000` for metrics, diagnostics, approvals, and audit review
-- `switch-web`: limited Next.js network web surface on `0.0.0.0:3001` by default, chat and repository views only
+- `switch-dashboard`: host-only Next.js dashboard on `127.0.0.1:55601` for metrics, diagnostics, approvals, and audit review
+- `switch-web`: limited Next.js network web surface on `0.0.0.0:55602` by default, chat and repository views only
 - `switch-db`: durable users, repos, tasks, runs, approvals, audit, policy records
 - `switch-redis`: local queue/cache service
 - `switch-qdrant`: local vector search store
@@ -46,10 +46,10 @@ approved LAN endpoint.
 
 ```bash
 docker compose ps
-curl http://127.0.0.1:8000/version
-curl http://127.0.0.1:8000/agent/models
-curl http://127.0.0.1:3000/chat
-curl http://127.0.0.1:3001/chat
+curl http://127.0.0.1:55600/version
+curl http://127.0.0.1:55600/agent/models
+curl http://127.0.0.1:55601/chat
+curl http://127.0.0.1:55602/chat
 scripts/eval --json
 ```
 

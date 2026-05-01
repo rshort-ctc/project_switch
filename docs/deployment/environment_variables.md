@@ -8,8 +8,8 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 - `SWITCH_DATABASE_URL=postgresql+psycopg://...@switch-db:5432/switch`
 - `SWITCH_REDIS_URL=redis://switch-redis:6379/0`
 - `SWITCH_VECTOR_STORE_URL=http://switch-qdrant:6333`
-- `SWITCH_VLLM_ENDPOINT=http://model-gateway:8001/v1` or approved local endpoint.
-  Use `http://host.docker.internal:11434/v1` for host Ollama from Compose.
+- `SWITCH_VLLM_ENDPOINT=http://switch-vllm:55680/v1` or approved local endpoint.
+  Use `http://host.docker.internal:55681/v1` for host Ollama from Compose.
 - `SWITCH_POSTGRES_PASSWORD`: change the example value before deployment
 - `SWITCH_PROTECTED_BRANCHES`: include `main`, `master`, release branches
 
@@ -26,9 +26,9 @@ All runtime configuration is environment-driven with the `SWITCH_` prefix.
 ## Dashboard Surfaces
 
 - `SWITCH_DASHBOARD_SURFACE=host` for the local host dashboard.
-- `SWITCH_DASHBOARD_PORT=3000` and `SWITCH_DASHBOARD_BIND=127.0.0.1` for the host dashboard.
-- `SWITCH_WEB_PORT=3001` and `SWITCH_WEB_BIND=0.0.0.0` for the limited network web surface.
-- `SWITCH_WEB_API_URL=http://switch-api:8000` for the Docker web container to reach the backend on the Compose network.
+- `SWITCH_DASHBOARD_PORT=55601` and `SWITCH_DASHBOARD_BIND=127.0.0.1` for the host dashboard.
+- `SWITCH_WEB_PORT=55602` and `SWITCH_WEB_BIND=0.0.0.0` for the limited network web surface.
+- `SWITCH_WEB_API_URL=http://switch-api:55600` for the Docker web container to reach the backend on the Compose network.
 
 ## Model Roles
 

@@ -28,7 +28,7 @@ def test_local_only_rejects_public_ollama_endpoint() -> None:
 def test_local_only_allows_configured_compose_service_hosts() -> None:
     settings = Settings(
         vector_store_url="http://switch-qdrant:6333",
-        vllm_endpoint="http://switch-vllm:8001/v1",
+        vllm_endpoint="http://switch-vllm:55680/v1",
         _env_file=None,
     )
 
@@ -38,8 +38,8 @@ def test_local_only_allows_configured_compose_service_hosts() -> None:
 
 def test_local_only_allows_host_ollama_for_compose() -> None:
     settings = Settings(
-        ollama_endpoint="http://host.docker.internal:11434/v1",
-        vllm_endpoint="http://host.docker.internal:8001/v1",
+        ollama_endpoint="http://host.docker.internal:55681/v1",
+        vllm_endpoint="http://host.docker.internal:55680/v1",
     )
 
     assert settings.endpoint_is_local(str(settings.ollama_endpoint))

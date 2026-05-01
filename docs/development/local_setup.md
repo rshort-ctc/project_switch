@@ -56,12 +56,12 @@ Dashboard mode starts PostgreSQL, Redis, Qdrant, migrations, the API, and the
 `switch-dashboard` container on the host dashboard port.
 
 The current Compose file keeps data services and the API local-only while exposing a limited web surface for LAN clients:
-- Switch API on `127.0.0.1:8000`
-- Switch host dashboard on `127.0.0.1:3000`
-- Switch network web surface on `0.0.0.0:3001`
-- PostgreSQL on `127.0.0.1:55432`
-- Redis on `127.0.0.1:6379`
-- Qdrant on `127.0.0.1:6333` and `127.0.0.1:6334`
+- Switch API on `127.0.0.1:55600`
+- Switch host dashboard on `127.0.0.1:55601`
+- Switch network web surface on `0.0.0.0:55602`
+- PostgreSQL on `127.0.0.1:55632`
+- Redis on `127.0.0.1:55637`
+- Qdrant on `127.0.0.1:55633` and `127.0.0.1:55634`
 
 Repository registration validates paths inside the backend process. When the
 backend runs in Docker, selected host repositories must be mounted into the API
@@ -82,8 +82,8 @@ Service names in Compose:
 - `switch-qdrant`
 - optional `switch-vllm`
 
-If a previous SWITCH Compose project used the older service names, Docker may
-report orphan containers or a host port collision on `5432`. Run
+If a previous SWITCH Compose project used older service names or host port
+defaults, Docker may report orphan containers or a host port collision. Run
 `docker compose down --remove-orphans` before starting the renamed stack, or set
 `SWITCH_POSTGRES_PORT` to an unused local port. Container-to-container database
 traffic remains `switch-db:5432`.
@@ -134,13 +134,13 @@ uvicorn app.main:create_app --factory --reload
 Current health endpoint:
 
 ```bash
-curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:55600/health
 ```
 
 Current model gateway health endpoint:
 
 ```bash
-curl http://127.0.0.1:8000/model-gateway/health
+curl http://127.0.0.1:55600/model-gateway/health
 ```
 
 This endpoint expects a local vLLM-compatible server at `SWITCH_VLLM_ENDPOINT`.
@@ -154,7 +154,7 @@ docker compose exec switch-db pg_isready -U switch -d switch
 Confirm Qdrant health:
 
 ```bash
-curl http://127.0.0.1:6333/collections
+curl http://127.0.0.1:55633/collections
 ```
 
 Confirm Redis health:
@@ -191,8 +191,8 @@ mypy app
 
 - API factory: `app.main:create_app`
 - ASGI app: `app.main:app`
-- Host dashboard: `http://127.0.0.1:3000`
-- Network web surface: `http://<host-lan-ip>:3001`
+- Host dashboard: `http://127.0.0.1:55601`
+- Network web surface: `http://<host-lan-ip>:55602`
 - Desktop shell: `dashboard/src-tauri`
 
 ## Development Commands
@@ -321,7 +321,7 @@ today and should move to the Redis-backed worker runtime in the worker phase.
 Inspect pending approvals with:
 
 ```bash
-curl http://127.0.0.1:8000/approvals/pending
+curl http://127.0.0.1:55600/approvals/pending
 ```
 
 Task status includes latest run status, current or last workflow state, agent
@@ -363,6 +363,6 @@ from retrieved context only. Without a configured or reachable answer model,
 responses are marked `degraded=true` and show context citations only.
 
 Troubleshooting:
-- Confirm Qdrant: `curl http://127.0.0.1:6333/collections`
-- Confirm model gateway: `curl http://127.0.0.1:8001/v1/models`
+- Confirm Qdrant: `curl http://127.0.0.1:55633/collections`
+- Confirm model gateway: `curl http://127.0.0.1:55680/v1/models`
 - Rebuild stale vectors: rerun `switch repo index <repo-id>`

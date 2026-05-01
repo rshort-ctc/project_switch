@@ -132,8 +132,8 @@ Run the local stack with both UI surfaces:
 scripts/switch start
 ```
 
-The host dashboard runs in Docker at `http://127.0.0.1:3000`. The network web
-surface also runs in Docker on `SWITCH_WEB_PORT` and defaults to `0.0.0.0:3001`.
+The host dashboard runs in Docker at `http://127.0.0.1:55601`. The network web
+surface also runs in Docker on `SWITCH_WEB_PORT` and defaults to `0.0.0.0:55602`.
 
 Current endpoints:
 

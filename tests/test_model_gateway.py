@@ -205,13 +205,13 @@ def test_ollama_provider_reports_ollama_endpoint() -> None:
         assert request.url.path == "/v1/models"
         return httpx.Response(HTTP_OK, json={"data": []})
 
-    settings = make_settings(ollama_endpoint="http://localhost:11434/v1")
+    settings = make_settings(ollama_endpoint="http://localhost:55681/v1")
     gateway = make_gateway(httpx.MockTransport(handler), settings=settings)
     gateway.provider = ModelProvider.OLLAMA_LOCAL
 
     response = gateway.health()
 
-    assert response.endpoint == "http://localhost:11434/v1"
+    assert response.endpoint == "http://localhost:55681/v1"
 
 
 def test_retry_policy_recovers_from_transient_failure() -> None:

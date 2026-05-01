@@ -27,7 +27,7 @@ Then launch the extension host from the editor.
 
 ## Configuration
 
-- `switch.apiUrl`: local backend URL, default `http://127.0.0.1:8000`.
+- `switch.apiUrl`: local backend URL, default `http://127.0.0.1:55600`.
 - `switch.localUserId`: existing backend user id for task creation and approvals.
 - `switch.selectedRepositoryId`: selected registered repository id.
 - `switch.defaultBranch`: branch recorded when registering a workspace.

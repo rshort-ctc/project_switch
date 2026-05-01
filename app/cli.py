@@ -8,7 +8,7 @@ import typer
 from app.core.config import Settings
 from app.security.redaction import redact_secrets
 
-DEFAULT_API_URL = "http://127.0.0.1:8000"
+DEFAULT_API_URL = "http://127.0.0.1:55600"
 HTTP_ERROR_STATUS = 400
 
 app = typer.Typer(help="SWITCH internal operations intelligence CLI", no_args_is_help=True)

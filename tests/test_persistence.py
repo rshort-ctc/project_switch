@@ -63,7 +63,7 @@ def test_model_calls_are_durable_canonical_metadata(session: Session) -> None:
         agent_run_id=run_id,
         model_role="coder_model",
         model_name="local-coder",
-        endpoint="http://localhost:8001/v1",
+        endpoint="http://localhost:55680/v1",
         status="succeeded",
         request_summary="summarized prompt only",
         response_summary="summarized response only",

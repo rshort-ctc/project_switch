@@ -5,7 +5,7 @@
   "identifier": "com.citytelecoin.switch",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://127.0.0.1:3000/chat",
+    "devUrl": "http://127.0.0.1:55601/chat",
     "frontendDist": "../public"
   },
   "app": {
@@ -13,7 +13,7 @@
       {
         "label": "main",
         "title": "SWITCH",
-        "url": "http://127.0.0.1:3000/chat",
+        "url": "http://127.0.0.1:55601/chat",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,

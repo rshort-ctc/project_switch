@@ -19,7 +19,7 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     SWITCH_DASHBOARD_SURFACE=${SWITCH_DASHBOARD_SURFACE} \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=55601
 
 RUN addgroup --system switch && adduser --system --ingroup switch switch
 
@@ -29,6 +29,6 @@ COPY --from=builder /srv/dashboard/public ./public
 
 USER switch
 
-EXPOSE 3000
+EXPOSE 55601
 
 CMD ["node", "server.js"]

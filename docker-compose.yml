@@ -23,8 +23,8 @@ services:
       SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@switch-db:5432/switch}
       SWITCH_REDIS_URL: ${SWITCH_REDIS_URL:-redis://switch-redis:6379/0}
       SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://switch-qdrant:6333}
-      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:8001/v1}
-      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:11434/v1}
+      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:55680/v1}
+      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:55681/v1}
       SWITCH_ARTIFACT_ROOT: ${SWITCH_ARTIFACT_ROOT:-/srv/switch/.switch/artifacts}
       SWITCH_WORKSPACE_ROOT: ${SWITCH_WORKSPACE_ROOT:-/workspaces}
       SWITCH_MODEL_REQUEST_TIMEOUT_SECONDS: ${SWITCH_MODEL_REQUEST_TIMEOUT_SECONDS:-30}
@@ -59,7 +59,7 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "${SWITCH_BACKEND_BIND:-127.0.0.1}:${SWITCH_BACKEND_PORT:-8000}:8000"
+      - "${SWITCH_BACKEND_BIND:-127.0.0.1}:${SWITCH_BACKEND_PORT:-55600}:55600"
     volumes:
       - switch-artifacts:/srv/switch/.switch
       - ${SWITCH_WORKSPACE_ROOT:-./workspaces}:/workspaces:rw
@@ -71,7 +71,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:55600/health', timeout=3)"
       interval: 15s
       timeout: 5s
       retries: 10
@@ -90,8 +90,8 @@ services:
       SWITCH_LOCAL_ONLY: ${SWITCH_LOCAL_ONLY:-true}
       SWITCH_DATABASE_URL: ${SWITCH_DATABASE_URL:-postgresql+psycopg://switch:switch@switch-db:5432/switch}
       SWITCH_VECTOR_STORE_URL: ${SWITCH_VECTOR_STORE_URL:-http://switch-qdrant:6333}
-      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:8001/v1}
-      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:11434/v1}
+      SWITCH_VLLM_ENDPOINT: ${SWITCH_VLLM_ENDPOINT:-http://switch-vllm:55680/v1}
+      SWITCH_OLLAMA_ENDPOINT: ${SWITCH_OLLAMA_ENDPOINT:-http://host.docker.internal:55681/v1}
       SWITCH_ALLOWED_LOCAL_HOSTS: ${SWITCH_ALLOWED_LOCAL_HOSTS:-["localhost","backend","dashboard","postgres","redis","qdrant","model-gateway","switch-api","switch-dashboard","switch-web","switch-db","switch-redis","switch-qdrant","switch-vllm","host.docker.internal"]}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -110,19 +110,19 @@ services:
       args:
         SWITCH_DASHBOARD_SURFACE: web
     environment:
-      SWITCH_API_URL: ${SWITCH_WEB_API_URL:-http://switch-api:8000}
+      SWITCH_API_URL: ${SWITCH_WEB_API_URL:-http://switch-api:55600}
       SWITCH_DASHBOARD_SURFACE: web
     depends_on:
       switch-api:
         condition: service_healthy
     ports:
-      - "${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-3001}:3000"
+      - "${SWITCH_WEB_BIND:-0.0.0.0}:${SWITCH_WEB_PORT:-55602}:55601"
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:55601').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 10
@@ -138,19 +138,19 @@ services:
       args:
         SWITCH_DASHBOARD_SURFACE: host
     environment:
-      SWITCH_API_URL: ${SWITCH_DASHBOARD_API_URL:-http://switch-api:8000}
+      SWITCH_API_URL: ${SWITCH_DASHBOARD_API_URL:-http://switch-api:55600}
       SWITCH_DASHBOARD_SURFACE: host
     depends_on:
       switch-api:
         condition: service_healthy
     ports:
-      - "${SWITCH_DASHBOARD_BIND:-127.0.0.1}:${SWITCH_DASHBOARD_PORT:-3000}:3000"
+      - "${SWITCH_DASHBOARD_BIND:-127.0.0.1}:${SWITCH_DASHBOARD_PORT:-55601}:55601"
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:55601').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 10
@@ -166,7 +166,7 @@ services:
       POSTGRES_USER: ${SWITCH_POSTGRES_USER:-switch}
       POSTGRES_PASSWORD: ${SWITCH_POSTGRES_PASSWORD:-switch}
     ports:
-      - "${SWITCH_POSTGRES_BIND:-127.0.0.1}:${SWITCH_POSTGRES_PORT:-55432}:5432"
+      - "${SWITCH_POSTGRES_BIND:-127.0.0.1}:${SWITCH_POSTGRES_PORT:-55632}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -183,7 +183,7 @@ services:
     image: redis:7.2
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     ports:
-      - "${SWITCH_REDIS_BIND:-127.0.0.1}:${SWITCH_REDIS_PORT:-6379}:6379"
+      - "${SWITCH_REDIS_BIND:-127.0.0.1}:${SWITCH_REDIS_PORT:-55637}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -198,8 +198,8 @@ services:
     <<: *service-defaults
     image: qdrant/qdrant:v1.11.0
     ports:
-      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_HTTP_PORT:-6333}:6333"
-      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_GRPC_PORT:-6334}:6334"
+      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_HTTP_PORT:-55633}:6333"
+      - "${SWITCH_QDRANT_BIND:-127.0.0.1}:${SWITCH_QDRANT_GRPC_PORT:-55634}:6334"
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
@@ -222,11 +222,11 @@ services:
       - --host
       - 0.0.0.0
       - --port
-      - "8001"
+      - "55680"
       - --model
       - ${SWITCH_VLLM_MODEL_PATH:-/models/model}
     ports:
-      - "${SWITCH_VLLM_PORT:-8001}:8001"
+      - "${SWITCH_VLLM_PORT:-55680}:55680"
     volumes:
       - ${SWITCH_MODEL_ROOT:-./models}:/models:ro
       - model-cache:/models/cache
@@ -235,7 +235,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/v1/models', timeout=5)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:55680/v1/models', timeout=5)"
       interval: 30s
       timeout: 10s
       retries: 20

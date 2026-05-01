@@ -4,7 +4,7 @@
 
 ```bash
 docker compose up --build -d
-curl http://127.0.0.1:8000/health/details
+curl http://127.0.0.1:55600/health/details
 ```
 
 ## Register And Index A Repo
