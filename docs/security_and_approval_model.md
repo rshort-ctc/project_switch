@@ -18,6 +18,8 @@ SWITCH is an internal City Tele Coin operations platform. Its safety model is ba
 
 ## Action Classes
 
+Phase 1B adds a deterministic action classifier in `app/security/action_policy.py`. The classifier maps normalized action names to the classes below. Unknown or empty action names are classified as `blocked` by default. This policy is static code, not prompt text, and LLM output must not control or override classification.
+
 ### `read_only`
 
 Read-only actions inspect approved data and return summaries, citations, or context without changing records or contacting external systems.
@@ -25,6 +27,7 @@ Read-only actions inspect approved data and return summaries, citations, or cont
 Examples:
 
 - Summarize ticket: `read_only`
+- Lookup site: `read_only`
 - Retrieve knowledge-base procedure: `read_only`
 - Assemble site context from approved internal records: `read_only`
 
@@ -37,6 +40,7 @@ Examples:
 - Draft email to vendor: `draft_only`
 - Draft outage update: `draft_only`
 - Prepare vendor escalation packet: `draft_only`
+- Generate escalation packet: `draft_only`
 
 ### `requires_approval`
 
@@ -46,7 +50,7 @@ Examples:
 
 - Send email to vendor: `requires_approval`
 - Submit provider portal update: `requires_approval`
-- Change network configuration: `requires_approval`
+- Modify ticket record: `requires_approval`
 - Update ticket status from AI-prepared recommendation: `requires_approval`
 
 ### `admin_only`
@@ -56,6 +60,7 @@ Admin-only actions require elevated authorization and should generally be unavai
 Examples:
 
 - Delete records: `admin_only`
+- Change network configuration: `admin_only`
 - Change security policy: `admin_only`
 - Modify retention settings: `admin_only`
 - Grant or revoke access: `admin_only`
@@ -70,6 +75,24 @@ Examples:
 - Use secrets from source code or chat content: `blocked`.
 - Send customer or vendor communications without review: `blocked`.
 - Make autonomous production changes: `blocked`.
+
+## Phase 1B Baseline Classifications
+
+The initial action map is intentionally small:
+
+| Action name | Class |
+| --- | --- |
+| `summarize_ticket` | `read_only` |
+| `lookup_site` | `read_only` |
+| `draft_vendor_email` | `draft_only` |
+| `generate_escalation_packet` | `draft_only` |
+| `send_vendor_email` | `requires_approval` |
+| `modify_ticket_record` | `requires_approval` |
+| `change_network_config` | `admin_only` |
+| `delete_records` | `admin_only` |
+| `export_sensitive_data` | `blocked` |
+
+This phase does not implement sending, ticket mutation, network changes, exports, provider portal actions, or other integrations. It only establishes a deterministic classification foundation for later approval and audit workflows.
 
 ## Approval Requirements
 
