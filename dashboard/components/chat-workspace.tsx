@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { runDashboardCode, runDashboardTerminal, sendDashboardChatMessage } from "@/app/actions";
+import { safeRandomUUID } from "@/lib/safe-random-uuid";
 import type { DashboardSurface } from "@/lib/surface";
 import type {
   ApprovalRequest,
@@ -169,13 +170,13 @@ export function ChatWorkspace({
       return;
     }
     const userMessage: ThreadMessage = {
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       role: "user",
       content: content.trim(),
       createdAt: new Date().toISOString(),
     };
     const pendingAssistant: ThreadMessage = {
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       role: "assistant",
       content: "",
       pending: {
@@ -773,7 +774,7 @@ function parseMarkdownLite(content: string): Array<{ kind: "text" | "code"; valu
 
 function createThread(repositoryId: string | null): Thread {
   return {
-    id: crypto.randomUUID(),
+    id: safeRandomUUID(),
     title: "New chat",
     repositoryId,
     messages: [],
