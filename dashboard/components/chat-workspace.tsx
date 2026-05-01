@@ -389,7 +389,7 @@ export function ChatWorkspace({
                   model {modelGateway?.status ?? "offline"}
                 </span>
                 {provider === "ollama_cloud" ? (
-                  <span className="badge danger">cloud opt-in required</span>
+                  <span className="badge danger">remote model policy gated</span>
                 ) : null}
               </>
             ) : null}

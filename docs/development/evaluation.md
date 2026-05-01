@@ -1,7 +1,7 @@
 # Evaluation Harness
 
 SWITCH includes a fully local synthetic evaluation harness for measuring whether the
-coding-agent platform is useful and safe before connecting it to larger task suites.
+platform is useful and safe before connecting it to larger task suites.
 
 Run it with:
 

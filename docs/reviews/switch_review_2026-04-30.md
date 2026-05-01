@@ -1,18 +1,18 @@
 # Switch Code + Usability Review
 
 *Reviewer: code/architecture/security audit, 2026-04-30*
-*Subject: Switch — System-Wide Intelligence for Testing, Coding, and Hardening*
+*Subject: Switch - Internal Operations Platform Foundation Review*
 *Repo: `/home/rshort/Projects/SWITCH` — branch `main`*
 
 ## Executive Summary
 
 Switch is a **well-architected, locally-grounded foundation** for a fully local
-coding-agent platform. The persistence model, policy engine, sandbox, patch
+operations support platform. The persistence model, policy engine, sandbox, patch
 service, retrieval engine, and deterministic agent workflow are all real,
 non-trivial implementations with reasonable test coverage. Local-only
 enforcement of the model gateway and vector store is genuine, not theatre.
 
-But Switch as shipped today is **not a usable coding agent**. The pieces are
+But Switch as shipped today is **not a complete operations platform**. The pieces are
 there; they are not wired together. Specifically:
 
 - The `DeterministicCodingAgentWorkflow` exists and is unit-tested, but **no
@@ -30,8 +30,8 @@ there; they are not wired together. Specifically:
   `database_url` or `redis_url`**.
 
 Switch should be treated as the *control-plane and retrieval foundation*
-through Phase 16. The autonomous-coding-agent layer that the README describes
-is mostly placeholder routing — `app/agents/workflow.py` is real engineering;
+through Phase 16. The task workflow layer is mostly placeholder routing;
+`app/agents/workflow.py` is real engineering;
 the API surface to drive it is missing.
 
 ---

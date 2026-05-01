@@ -1,8 +1,8 @@
-# Local Coding Agent Architecture
+# SWITCH Architecture Baseline
 
 ## Purpose
 
-SWITCH is a local-first coding agent platform for employer-controlled repositories. The platform should help read, retrieve, plan, propose, validate, review, and prepare code changes while keeping policy decisions outside the model.
+SWITCH is a local-first internal operations intelligence platform for employer-controlled workflows and repositories. The platform should help authorized staff read, retrieve, plan, propose, validate, review, and prepare work while keeping policy decisions outside the model.
 
 The model may propose. The platform decides what is allowed.
 

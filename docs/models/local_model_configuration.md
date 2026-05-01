@@ -49,21 +49,15 @@ SWITCH_SUMMARIZER_MODEL=llama3.1:8b
 SWITCH_EMBEDDING_MODEL=nomic-embed-text:latest
 ```
 
-Avoid Ollama entries ending in `:cloud` for LOCAL_ONLY deployments because those
-delegate inference outside the local machine.
+Do not use Ollama entries ending in `:cloud` for SWITCH operational deployments
+because those delegate inference outside the local machine.
 
 The chat UI can override the configured role model per request. It discovers
 available model IDs from `/model-gateway/catalog`. The provider selector routes
 vLLM requests through `SWITCH_VLLM_ENDPOINT` and Ollama requests through
-`SWITCH_OLLAMA_ENDPOINT`. Ollama cloud models require both:
-
-```bash
-SWITCH_LOCAL_ONLY=false
-SWITCH_ALLOW_OLLAMA_CLOUD_MODELS=true
-```
-
-That opt-in is intentionally separate because prompts and repository context may
-leave the local network when an Ollama cloud model is selected.
+`SWITCH_OLLAMA_ENDPOINT`. Remote model options must remain disabled for
+operational use because prompts, evidence, and repository context must stay
+inside approved local boundaries.
 
 Troubleshooting:
 

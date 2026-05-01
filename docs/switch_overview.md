@@ -1,6 +1,6 @@
 # SWITCH Overview
 
-SWITCH is a Python-based internal operations intelligence platform for City Tele Coin support and engineering workflows. It is designed to help authorized staff assemble accurate operational context, draft safe communications, and prepare action plans without bypassing human judgment or approval gates.
+SWITCH is a Python-based internal operations intelligence platform for support, engineering, site, circuit, vendor, ticket, and escalation workflows. It is designed to help authorized City Tele Coin staff assemble accurate operational context, draft safe communications, and prepare action plans without bypassing human judgment or approval gates.
 
 SWITCH is employer-scoped. It must only ingest, index, retrieve, summarize, or reason over approved City Tele Coin operational data and approved internal knowledge sources.
 

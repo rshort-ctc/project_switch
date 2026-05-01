@@ -1,7 +1,7 @@
 # SWITCH Documentation
 
-SWITCH is operated as a local-first coding-agent platform. Start with the guide
-for your role:
+SWITCH is operated as a local-first internal operations intelligence platform.
+Start with the guide for your role:
 
 - Operators: [local production deployment](deployment/local_production.md) and
   [operator guide](operations/operator_guide.md)

@@ -1,7 +1,7 @@
 [project]
 name = "switch-agent"
 version = "0.1.0"
-description = "Fully local, policy-gated coding agent platform."
+description = "Internal operations intelligence platform for support, engineering, site, circuit, vendor, ticket, and escalation workflows."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -16,7 +16,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SWITCH Dashboard",
-  description: "Local coding agent operations dashboard",
+  description: "Internal operations intelligence dashboard",
 };
 
 const navItems = [
@@ -42,7 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <div className="brand">
               <div className="brand-title">SWITCH</div>
               <div className="brand-subtitle">
-                {surface === "web" ? "Network repo chat" : "Local agent control plane"}
+                {surface === "web" ? "Network chat and repos" : "Host operations dashboard"}
               </div>
             </div>
             <nav className="nav" aria-label="Dashboard navigation">

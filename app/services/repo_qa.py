@@ -518,10 +518,10 @@ def _answer_messages(*, question: str, contexts: list[QAContextBundle]) -> list[
         ChatMessage(
             role="system",
             content=(
-                "You are SWITCH, a local coding assistant. Answer only from the retrieved "
-                "repository context. Cite file paths and line ranges. If the context is "
-                "insufficient, say so directly. Do not invent files, tests, behavior, or "
-                "validation results."
+                "You are SWITCH, an internal operations intelligence assistant. Answer only "
+                "from the retrieved repository context. Cite file paths and line ranges. "
+                "If the context is insufficient, say so directly. Do not invent files, "
+                "tests, behavior, or validation results."
             ),
         ),
         ChatMessage(

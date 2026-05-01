@@ -1,6 +1,6 @@
 # Current Architecture
 
-This document captures the current SWITCH codebase as of Phase 0. The current implementation is a local coding-agent platform foundation with strong policy, audit, retrieval, and dashboard scaffolding. It is not yet a City Tele Coin operations domain platform.
+This document captures the current SWITCH codebase as of Phase 0. The current implementation is a local operations-platform foundation with strong policy, audit, retrieval, and dashboard scaffolding. It is not yet a complete City Tele Coin operations domain platform.
 
 ## Module Map
 
@@ -43,7 +43,7 @@ Courthouse memory stores evidence and extracted claims separately from verdicts 
 
 ## Current AI and Model Flow
 
-Model configuration is local-first. Settings default to local endpoints and `local_only=true`. Cloud-like model use is disabled by default but configurable. Repository Q&A records model-call metadata when generation is attempted. Direct non-repository chat currently records audit summary events but is not uniformly represented in the durable model-call ledger.
+Model configuration is local-first. Settings default to local endpoints and `local_only=true`. Remote model use is disabled by policy for SWITCH operational deployments. Repository Q&A records model-call metadata when generation is attempted. Direct non-repository chat currently records audit summary events but is not uniformly represented in the durable model-call ledger.
 
 Prompt construction is centered on system instructions, retrieved repository context, and optional governed memory context. LLM output is advisory and should not mutate company records or external systems without explicit approval flows.
 

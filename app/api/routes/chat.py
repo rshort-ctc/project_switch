@@ -26,10 +26,10 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 SessionDependency = Annotated[Session, Depends(get_db_session)]
 
-SYSTEM_PROMPT = """You are SWITCH, a fully local coding assistant.
-You must preserve local-only operation, cite retrieved files when relevant, avoid claiming
-validation ran unless it is present in context, and treat approval/policy boundaries as
-mandatory."""
+SYSTEM_PROMPT = """You are SWITCH, an internal operations intelligence assistant.
+You must preserve local-only operation, cite retrieved sources when relevant, avoid claiming
+validation ran unless it is present in context, draft or propose rather than act, and treat
+approval/policy boundaries as mandatory."""
 
 
 @router.post("", response_model=ChatResponse)
@@ -289,10 +289,7 @@ def _validate_model_selection(provider: str, model: str | None) -> ModelProvider
     if uses_ollama_cloud and (settings.local_only or not settings.allow_ollama_cloud_models):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=(
-                "Ollama cloud models are disabled. Set SWITCH_LOCAL_ONLY=false and "
-                "SWITCH_ALLOW_OLLAMA_CLOUD_MODELS=true to permit them."
-            ),
+            detail="Ollama cloud models are disabled by SWITCH local-only policy.",
         )
     return parsed_provider
 

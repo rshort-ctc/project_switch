@@ -1,6 +1,6 @@
 # City Tele Coin Operational Scope
 
-This document defines the intended City Tele Coin operations domain for future SWITCH phases. It is a scope and design baseline only; Phase 0 does not implement these entities.
+This document defines the City Tele Coin operations domain boundary for SWITCH. It is a scope baseline; domain schemas and integrations should be added only after data classification, identity, and approval controls are in place.
 
 ## Sites and Facilities
 

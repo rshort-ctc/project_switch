@@ -11,10 +11,10 @@ from app.security.redaction import redact_secrets
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 HTTP_ERROR_STATUS = 400
 
-app = typer.Typer(help="SWITCH local coding agent CLI", no_args_is_help=True)
-agent_app = typer.Typer(help="Inspect local agent backend state", no_args_is_help=True)
+app = typer.Typer(help="SWITCH internal operations intelligence CLI", no_args_is_help=True)
+agent_app = typer.Typer(help="Inspect local backend state", no_args_is_help=True)
 repo_app = typer.Typer(help="Register and index repositories", no_args_is_help=True)
-task_app = typer.Typer(help="Create and inspect coding tasks", no_args_is_help=True)
+task_app = typer.Typer(help="Create and inspect controlled tasks", no_args_is_help=True)
 validation_app = typer.Typer(help="Inspect validation results", no_args_is_help=True)
 memory_app = typer.Typer(help="Governed memory and context compiler commands", no_args_is_help=True)
 

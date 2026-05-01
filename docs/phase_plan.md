@@ -10,7 +10,7 @@ Expected outputs: overview, architecture audit, CTC operational scope, security/
 
 Validation commands: `python -m pytest`, `python -m compileall app`, `ruff check .`, `mypy app`, `npm run lint`, `npm run typecheck`.
 
-Risks: documenting assumptions as if implemented; overlooking unauthenticated surfaces; mixing coding-agent capabilities with operations automation.
+Risks: documenting assumptions as if implemented; overlooking unauthenticated surfaces; mixing repository/task capabilities with operations automation.
 
 What not to do: rewrite the app, add integrations, add automation, send communications, change production behavior, or add unrelated project references.
 
